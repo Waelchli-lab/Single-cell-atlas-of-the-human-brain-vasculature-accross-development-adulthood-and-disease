@@ -1,0 +1,249 @@
+---
+title: "CellphoneDB Ligand receptor interaction analysis of unsorted endothelial and perivascular cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+```{r}
+##CellphoneDB ligand receptor analysis of unsorted endothelial and perivascular cells
+##related to Extended Data Figure 12 b,c,e,f,h,i, Supplementary Figure 19 b,c,g,h,l,m,q,r,v,w
+```
+
+
+```{r}
+#CellphoneDB ligand receptor analysis of the fetal brain (CNS) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(FETAL@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(FETAL@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu command lines
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the adult/control brain cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(TL@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(TL@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the arteriovenous malformations (AVM) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+AVM <- readRDS(file = "AVM unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(AVM@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(AVM@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the Low grade glioma (LGG) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+LGG <- readRDS(file = "LGG unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(LGG@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(LGG@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the High grade glioma (GBM) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+GBM <- readRDS(file = "GBM unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(GBM@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(GBM@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the Metastasis (MET) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+MET <- readRDS(file = "MET unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(MET@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(MET@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+```{r}
+#CellphoneDB ligand receptor analysis of the Meningioma (MEN) cells
+
+#load libraries 
+library(Seurat)
+library(data.table)
+
+#Load the seurat object
+MEN <- readRDS(file = "MEN unsorted endothelial and perivascular cells_seurat object.rds")
+
+#extract metadata and counts
+metadata <- as.data.frame(as.matrix(MEN@meta.data))
+metadata$Patient <- NULL
+colnames(metadata) <- NULL
+write.table(metadata, file = 'metadata.txt', quote = F, col.names = F, row.names = T, sep = '\t')
+## the "metadata.txt" file needs to only have two columns (with no headers), one with the cells' name (barcode), and one with the cells' annotation
+
+#extract counts matrix
+counts <- as.data.frame(as.matrix(MEN@assays[["RNA"]]@data))
+write.table(counts, file = 'counts.txt', quote = F, col.names = T, row.names = T, sep = '\t')
+```
+```{bash}
+#run those in ubuntu comand line
+cellphonedb method statistical_analysis metadata.txt counts.txt --counts-data=gene_name
+# (default parameters used: Threshold:0.1 Iterations:1000 Debug-seed:-1 Threads:4 Precision:3)
+#to plot:
+cellphonedb plot heatmap_plot metadata.txt
+cellphonedb plot dot_plot
+cellphonedb plot dot_plot --columns in/columns.txt
+cellphonedb plot dot_plot --columns in/columns.txt
+#END
+```

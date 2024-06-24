@@ -1,0 +1,64 @@
+---
+title: "Transcriptome correlation heatmap for all cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+
+```{r}
+#Transcriptome correlation heatmap for FACS sorted endothelial cells - Extended Data Figure 1f
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load the seurat object of the overall merge all FACS sorted endothelial cells
+RPCA <- readRDS(file = "Overall merge of all sorted brain and peripehry endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different clusters
+all.genes <- rownames(RPCA)
+features = all.genes
+
+markers <- AverageExpression(RPCA, assays = "RNA", features = features, return.seurat = FALSE, group.by = "PATH", add.ident = NULL, slot = "data", verbose = TRUE)
+markers_dataframe <- as.data.frame(markers)
+
+heatmaply_cor(cor(markers_dataframe), colors = c("#0571b0","white","#ca0020"),scale = "row", k_col = 3,k_row = 3, dendrogram = ("both"),limits = c(0.5, 1))
+
+#End 
+```
+
+
+```{r}
+#Transcriptome correlation heatmap for unsorted endothelial and perivascular cells - Supplementary Figure 2g
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load the seurat object of the overall merge all unsorted endothelial and perivascular cells
+ALLCELLS <- readRDS(file = "Overall merge of all unsorted endothelial and perivascular cells_seurat object.rds")
+
+#combine the cell annotation ("Cellclusters") and the entity annotation ("PATH") metadata columns
+ALLCELLS$Annotation <- paste(ALLCELLS$PATH, ALLCELLS$Cellclusters)
+
+#compute average expression of each gene in the different clusters
+all.genes <- rownames(ALLCELLS)
+features = all.genes
+
+
+markers <- AverageExpression(ALLCELLS, assays = "RNA", features = features, return.seurat = FALSE, group.by = "Annotation", add.ident = NULL, slot = "data", verbose = TRUE)
+markers_dataframe <- as.data.frame(markers)
+
+heatmaply_cor(cor(markers_dataframe), colors = c("#0571b0","white","#ca0020"),scale = "none", k_col = 18,k_row = 18, fontsize_row = 7,fontsize_col = 7,limits = c(0, 1))%>% layout(width=1400, height = 1000)
+
+
+#End 
+```

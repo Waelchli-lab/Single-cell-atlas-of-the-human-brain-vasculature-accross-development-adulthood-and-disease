@@ -1,0 +1,600 @@
+---
+title: "TSCAN pseudotime analysis of sorted endothelial cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+##TSCAN pseudotime analysis of sorted endothelial cells
+## related to Supplementary Figure 13III
+#Source: http://bioconductor.org/books/3.14/OSCA.advanced/trajectory-analysis.html
+
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+DefaultAssay(FETAL) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(FETAL, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells
+```
+
+
+```{r}
+
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+DefaultAssay(TL) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(TL, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+```
+
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+DefaultAssay(AVM) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(AVM, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+```
+
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+DefaultAssay(LGG) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(LGG, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+```
+
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+DefaultAssay(GBM) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(GBM, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+```
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+DefaultAssay(MET) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(MET, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+```
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+DefaultAssay(MEN) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(MEN, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+```
+
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+PATH <- readRDS(file = "Overall merge of pathological sorted endothelial cells_seurat object.rds")
+DefaultAssay(PATH) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(PATH, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+```
+
+```{r}
+#load libraries 
+library(TSCAN)
+library(scater)
+library(SingleCellExperiment)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+library(ggbeeswarm)
+
+# TSCAN pseudotime analysis of the overall merge of of tumor sorted CD31+/CD45- endothelial cells 
+
+# Load the seurat object
+TUM <- readRDS(file = "Overall merge of tumor sorted endothelial cells_seurat object.rds")
+DefaultAssay(TUM) <- "RNA"
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(TUM, assay ="RNA")
+
+by.cluster <- aggregateAcrossCells(sce, ids=sce$ECclusters)
+centroids <- reducedDim(by.cluster, "UMAP")
+
+# Set clusters=NULL as we have already aggregated above.
+mst <- TSCAN::createClusterMST(centroids, clusters=NULL)
+mst
+
+
+line.data <- reportEdges(by.cluster, mst=mst, clusters=NULL, use.dimred="UMAP")
+
+
+colLabels(sce) = sce$ECclusters
+map.tscan <- mapCellsToEdges(sce, mst=mst, use.dimred="UMAP")
+tscan.pseudo <- orderCells(map.tscan, mst, start="Large artery")
+head(tscan.pseudo)
+
+# Taking the rowMeans just gives us a single pseudo-time for all cells.
+common.pseudo <- averagePseudotime(tscan.pseudo)
+sce$TSCANpseudotime = as.numeric(I(common.pseudo))
+
+
+#plot the pseudotime UMAP
+plotUMAP(sce, colour_by=I(common.pseudo), text_by="ECclusters", text_colour="red") + geom_line(data=line.data, mapping=aes(x=UMAP_1, y= UMAP_2, group=edge)) + scale_color_viridis(discrete = FALSE, option = "E")
+
+#plot cell order according to pseudotime
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+ggplot(as.data.frame(colData(sce)), 
+       aes(x = TSCANpseudotime, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("TSCANpseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by TSCAN pseudotime")
+
+
+#End of TSCAN pseudotime analysis of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+```

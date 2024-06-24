@@ -1,0 +1,64 @@
+---
+title: "Top entity (endothelial) markers dotplots"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Top entity (endothelial) markers heatmap - Figure 1c-f
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+#Load the seurat object of the overall merge of all sorted brain CD31+/CD45- endothelial cells
+EC <- readRDS(file = "Overall merge of all brain sorted endothelial cells_seurat object.rds")
+
+# set default assay to RNA
+DefaultAssay(EC) <- "RNA"
+
+# Input the the top  Fetal brain vs Adult/control brain ECs markers to plot
+features1 =c("ATP5F1E","PRXL2A","TTN","COL4A1","SEPTIN7","KDR","PALM2-AKAP2","MARCKS","SEPTIN2","CD93","COL4A2","NREP","MYO1B","SOX4","RELL1","NPIPB5","APCDD1","GTF2I","SLC38A2","MACF1","IGFBP2","CEMIP2","LAMA4","SMG1","APLNR","RNASE1","NET1","CAVIN2","RPS17","ATP5L","ATP5I","MT1M","HERPUD1","LY6E","CTGF","TSC22D1","HLA-A","SRGN","LGALS3","BST2","B2M","MT1E","HLA-C","MALAT1-ENSG00000251562","ATP5E","SPARCL1","HLA-B","MT2A","ADIRF","IFI27")
+
+#plot Fetal brain vs Adult/control brain ECs dotplot - Figure 1c
+Idents(EC) <- "PATH"
+DotPlot(EC, features = features1, cols = c("blue", "red"),idents = c("FETALCNS","TL"), group.by = "PATH",dot.scale = 6, scale = TRUE, scale.by = "size", dot.min = 0, scale.min = 0, scale.max = 100) +RotatedAxis()
+
+
+# Input the the top  Pathological brain vs Adult/control brain ECs markers to plot
+features2 =c("SPRY1","MGP","HSPG2","TIMP1","COL4A1","PLVAP","COL4A2","CD93","CALCRL","SPARC","ANGPT2","STC1","INSR","VWA1","PDLIM1","MARCKSL1","IGFBP4","IGFBP3","HTRA1","EMP1","VWF","MCAM","DUSP6","IGFBP7","ARHGDIB","IFI6","ABCG2","TSC22D1","COBLL1","SRARP","SLC38A5","SLC39A10","IFI27","ITM2A","CA4","CAVIN2","MT1M","HERPUD1","CD320","LGALS3","SLCO1A2","SLC7A5","BSG","CLDN5","MT2A","LY6E","SLC2A1","NET1","MT1E","ADIRF")
+
+#plot Pathological brain vs Adult/control brain ECs dotplot - Figure 1d
+Idents(EC) <- "PATH2"
+DotPlot(EC, features = features2, cols = c("blue", "red"),idents = c("Pathology","Control"), group.by = "PATH2",dot.scale = 6, scale = TRUE, scale.by = "size", dot.min = 0, scale.min = 0, scale.max = 100) +RotatedAxis()
+
+
+# Input the the top brain vascular malformations vs Adult/control brain ECs markers to plot
+features3 =c("MGP","TIMP1","CCL2","SOD2","SELE","PDLIM1","ACKR1","TM4SF1","NNMT","EMP1","VCAM1","IER3","ADAMTS9","IL6","CD55","CXCL2","PNP","ADAMTS1","DDX21","YBX3",
+"PTGS2","TCIM","S100A6","SOCS3","CLU","SPOCK2","IFI27","GNG11","SLCO2B1","ADGRF5","CA4","SLCO1A2","A2M","LY6E","ID1","ABCG2","SLC38A5","SLC39A10","MFSD2A","KLF2","CLDN5",
+"BSG","HERPUD1","CD320","SLC9A3R2","SLC2A1","MT1E","CAVIN2","SLC7A5","NET1")
+
+
+#plot brain vascular malformations vs Adult/control brain ECs dotplot - Figure 1e
+Idents(EC) <- "PATH3"
+DotPlot(EC, features = features3, cols = c("blue", "red"),idents = c("MAL","CONTROL"), group.by = "PATH3",dot.scale = 6, scale = TRUE, scale.by = "size", dot.min = 0, scale.min = 0, scale.max = 100) +RotatedAxis()
+
+
+
+# Input the the top brain tumors vs Adult/control brain ECs markers to plot
+features4 =c("SPRY1","HSPG2","MGP","PLVAP","COL4A1","SPARC","COL4A2","INSR","ANGPT2","TIMP1","CALCRL","CD93","STC1","VWA1","MARCKSL1","IGFBP4","IGFBP3","IGFBP7","HTRA1",
+"CA2","ARHGDIB","MCAM","IVNS1ABP","VWF","SOX4","ABCG2","IFI6","SLC38A5","SLC39A10","TSC22D1","COBLL1","SRARP","CAVIN2","IFI27","ITM2A","CA4","HERPUD1","CD320","SLC7A5",
+"SLCO1A2","MT1M","BSG","LGALS3","CLDN5","SLC2A1","LY6E","NET1","MT2A","MT1E","ADIRF")
+
+
+#plot brain tumors vs Adult/control brain ECs dotplot - Figure 1e
+Idents(EC) <- "PATH3"
+DotPlot(EC, features = features4, cols = c("blue", "red"),idents = c("TUM","CONTROL"), group.by = "PATH3",dot.scale = 6, scale = TRUE, scale.by = "size", dot.min = 0, scale.min = 0, scale.max = 100) +RotatedAxis()
+
+
+#End 
+```

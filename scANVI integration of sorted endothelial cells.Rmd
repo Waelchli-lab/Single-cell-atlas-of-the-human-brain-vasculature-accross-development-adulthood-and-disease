@@ -1,0 +1,117 @@
+---
+title: "scANVI integration/batch correction of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+##scANVI integration/batch correction of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains
+## related to Supplementary Figure 9e
+
+#load library
+library(Seurat)
+
+#Load the seurat objects of the datasets to integrate
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+# Set the default assay to RNA in all samples
+DefaultAssay(FETAL) <- "RNA"
+DefaultAssay(TL) <- "RNA"
+DefaultAssay(AVM) <- "RNA"
+DefaultAssay(LGG) <- "RNA"
+DefaultAssay(GBM) <- "RNA"
+DefaultAssay(MEN) <- "RNA"
+DefaultAssay(MET) <- "RNA"
+
+#Merge seurat objects, and normalize counts
+MERGEEC <- merge(AVM, y = c(GBM, LGG, MEN, MET, TL, FETAL))
+MERGEEC <- NormalizeData(MERGEEC, normalization.method = "LogNormalize", scale.factor = 10000)
+
+#extract the counts matrix and metadata information from the seurat object, to be able to convert it to a scanpy object
+exprs <- GetAssayData(MERGEEC, slot = "data")
+meta <- MERGEEC[[]]
+
+```
+
+```{python}
+#now convert the seurat object (MERGEEC) to a scanpy object
+
+adata_seurat = sc.AnnData(X = r.exprs.T, obs = r.meta)
+
+#save the scanpy object
+adata_seurat.write("MERGEEC.h5ad")
+```
+
+```{python}
+#in ubuntu
+
+#start python
+python
+
+#load libraries
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import scvi
+import scib
+
+#load the scanpy object
+adata = sc.read("MERGEEC.h5ad")
+
+sc.pp.highly_variable_genes(
+    adata,
+    n_top_genes=3000,
+    batch_key="Patient",
+    subset=False
+)
+
+scvi.model.SCVI.setup_anndata(adata, batch_key="Patient")
+vae = scvi.model.SCVI(adata, n_layers=2, n_latent=30, gene_likelihood="nb")
+vae.train()
+
+
+adata.obsm["X_scVI"] = vae.get_latent_representation()
+sc.pp.neighbors(adata, use_rep="X_scVI")
+sc.tl.leiden(adata)
+sc.tl.umap(adata, min_dist=0.2)
+
+from scvi.model.utils import mde
+import pymde
+adata.obsm["X_mde"] = mde(adata.obsm["X_scVI"])
+
+
+sc.pl.embedding(adata, basis="X_mde", color=["ECclusters"], ncols=1, frameon=False)
+
+
+
+lvae = scvi.model.SCANVI.from_scvi_model(
+    vae,
+    adata=adata,
+    labels_key="ECclusters",
+    unlabeled_category="Unknown",
+)
+
+
+lvae.train(max_epochs=20, n_samples_per_label=100)
+
+
+adata.obsm["X_scANVI"] = lvae.get_latent_representation(adata)
+adata.obsm["X_mde_scanvi"] = mde(adata.obsm["X_scANVI"])
+
+
+sc.pl.embedding(adata, basis="X_mde_scanvi", color=["ECclusters"], ncols=1, frameon=False)
+
+#End
+```
+
+
+
+

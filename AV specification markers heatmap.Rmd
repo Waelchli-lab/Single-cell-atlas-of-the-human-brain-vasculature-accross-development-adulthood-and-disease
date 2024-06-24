@@ -1,0 +1,56 @@
+---
+title: "Top Arteriovenous (AV) specification markers of brain vasculature heatmap"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Top Arteriovenous (AV) specification markers of brain vasculature heatmap - Figure 2e
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+#Load the seurat object of the overall merge of sorted CD31+/CD45- endothelial cells 
+ALLEC <- readRDS(file = "Overall merge of all brain sorted endothelial cells_seurat object.rds")
+
+# set default assay to RNA
+DefaultAssay(ALLEC) <- "RNA"
+
+# Input the the top AV specification features to plot
+features = c("MGP","FBLN5","LTBP4","S100A6","ELN",
+             "GLUL","ADAMTS1","SEMA3G","ALPL","GJA4",
+             "SLC2A1","LGALS3","CD320","AIF1L","NET1",
+             "ESM1","ANGPT2","APLN","PLVAP","CA2",
+             "CA4","SLCO1A2","BSG","MFSD2A","SLC16A1",
+             "IL1R1","PRCP","RAMP3","PRSS23","HYAL2",
+             "POSTN","PTGDS","DNASE1L3","NNMT","EFEMP1",
+             "SELE","ACKR1","IL6","CCL2","VCAM1",
+             "APOE","TAGLN","ACTA2","NDUFA4L2","RGS5",
+             "THY1","TPM2","LGALS1","COL1A2","COL1A1",
+             "TTN","NPIPB5","SMG1","MT-CO3","MT-RNR1",
+             "CENPF","TOP2A","STMN1","MKI67","PTTG1",
+             "HIST1H4C","HMGN2","BEX1","HMGB2","UBE2C",
+             "MT3","FABP7","VEGFA","PTPRZ1","SEC61G")
+
+# Get the average expression per cluster and convert to data frame
+AV_markers <- AverageExpression(ALLEC, assays = "RNA", features = features, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+
+
+markers_dataframe <- as.data.frame(AV_markers)
+
+
+# Arrange the dataframe according to the order you need
+AV_markers_dataframe2 <- markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein", "RNA.EndoMT","RNA.Proliferating.EndoMT","RNA.Mitochondrial", "RNA.Proliferating.cell","RNA.Proliferating.Stem.to.EC","RNA.Stem.to.EC")]
+
+
+# plot the heatmap
+heatmaply(AV_markers_dataframe2, scale = "row", colors = c("#0571b0","white","#ca0020"), grid_gap = 1,dendrogram = ("none")) %>% layout(width=1000, height = 1400)
+
+
+#End 
+```

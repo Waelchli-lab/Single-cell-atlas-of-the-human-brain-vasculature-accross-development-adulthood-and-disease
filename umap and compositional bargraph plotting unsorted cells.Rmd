@@ -1,0 +1,136 @@
+---
+title: "UMAP and compositional bar graph plotting of unsorted endothelial and perivascular cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+# overall merge of sorted CD31+/CD45- endothelial cells
+
+#load libraries 
+library(Seurat)
+library(ggplot2)
+
+#Load the seurat object of the overall merge of unsorted endothelial and perivascular cells 
+ALLCELLS <- readRDS(file = "Overall merge of all unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#compositional bar graphs plotting (Supplementary Figure 2f)
+cols =  c('Tumor cells' = '#F8D5FF','Neuron progenitor' = '#EEFF97','Neurons' = '#EEDE84','Stem cells'= '#F8E6FC','Astrocytes' = '#ABD8B5','Fibroblasts'='#BF9C00', 'Endothelial cells' = '#EDC6B5','Pericytes' = '#E4AD5B','Mast cells' = '#89D0F5','NK cells' = '#854FAA','Neutrophils' = '#8585AA','Microglia and Macrophages' = '#8585C0','T-cells' = '#A9B1F6','B-cells' = '#5A84F4','Oligodendrocytes' = '#92B1B1', 'Erythroid cells' = '#CEB6AE','Smooth muscle cells' = '#A9995B')
+
+                                                  
+
+ALLCELLS <- AddMetaData(object = ALLCELLS, metadata = "ALLCELLS" , col.name = "ALLCELLS")
+
+metadata <- as.data.frame(as.matrix(ALLCELLS@meta.data))
+
+metadata$Cellclusters <- factor(metadata$Cellclusters, levels=c('Smooth muscle cells','Oligodendrocytes','T-cells','Microglia and Macrophages','Neutrophils','NK cells','Fibroblasts','Endothelial cells','B-cells','Pericytes','Astrocytes','Stem cells','Neurons','Neuron progenitor','Tumor cells','Erythroid cells','Mast cells'))
+
+metadata$Patient <- factor(metadata$Patient, levels=c("FETALCNS1","FETALCNS2","FETALCNS3","FETALCNS4","FETALCNS5","FETALCNS6","FETALCNS8", "TL5","TL6","TL7","TL8","TL9","TL10",  "AVM3","AVM4","AVM5","LGG3","LGG4","LGG5","LGG6","GBM3","GBM4","GBM5", "GBM6","GBM7","MET3","MET4","MET5", "MEN3","MEN4","MEN5"))
+
+#compositional bar graphs for all cells (all entities)
+ggplot(metadata, aes(x= metadata[["ALLCELLS"]], fill= metadata[["Cellclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "Fetal", "Adult/control" and "Pathological" brain cells - Supplementary Figure 2f
+ggplot(metadata, aes(x= metadata[["PATH2"]], fill= metadata[["Cellclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "Fetal", "Adult/control", "brain tumors" and "brain vascular malformations" cells - Supplementary Figure 2f
+ggplot(metadata, aes(x= metadata[["PATH3"]], fill= metadata[["Cellclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "individual entity" - - Supplementary Figure 2f
+ggplot(metadata, aes(x= metadata[["PATH"]], fill= metadata[["Cellclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "individual patient" - Supplementary Figure 3o
+ggplot(metadata, aes(x= metadata[["Patient"]], fill= metadata[["Cellclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+#End 
+```
+
+```{r}
+#Fetal brain unsorted endothelial and perivascular cells
+
+#Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the fetal brain unsorted endothelial and perivascular cells (Supplementary Figure 2e, 3a)
+DimPlot(FETAL, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+
+#End 
+```
+
+```{r}
+#Adult/control brain (temporal lobe) unsorted endothelial and perivascular cells
+#Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the adult/control brain (temporal lobe)  unsorted endothelial and perivascular cells (Supplementary Figure 2e, 3c)
+DimPlot(TL, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia&Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Neural stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End 
+```
+
+```{r}
+#Arteriovenous malformations (AVM) unsorted endothelial and perivascular cells
+#Load the seurat object
+AVM <- readRDS(file = "AVM unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the arteriovenous malformations (AVM) unsorted endothelial and perivascular cells (Supplementary Figure 2e, 3e)
+DimPlot(AVM, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B-cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End 
+```
+
+```{r}
+#Lower grade glioma (LGG) unsorted endothelial and perivascular cells 
+#Load the seurat object
+LGG <- readRDS(file = "LGG unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the Lower grade glioma (LGG) unsorted endothelial and perivascular cells (Supplementary Figure 2e, 3g)
+DimPlot(LGG, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B-cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End
+```
+
+```{r}
+#High grade glioma (GBM) unsorted endothelial and perivascular cells 
+#Load the seurat object
+GBM <- readRDS(file = "GBM unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the High grade glioma (GBM) unsorted endothelial and perivascular cells  (Supplementary Figure 2e, 3i)
+DimPlot(GBM, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B-cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Tumor stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End
+```
+
+```{r}
+#Metastasis (MET) unsorted endothelial and perivascular cells 
+#Load the seurat object
+MET <- readRDS(file = "MET unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the Metastasis (MET) unsorted endothelial and perivascular cells  (Supplementary Figure 2e, 3k)
+DimPlot(MET, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B-cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Tumor stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor epithelial cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End
+```
+
+```{r}
+#Meningioma (MEN) unsorted endothelial and perivascular cells
+# Load the seurat object
+MEN <- readRDS(file = "MEN unsorted endothelial and perivascular cells_seurat object.rds")
+
+#To plot the UMAP for the Metastasis (MET) unsorted endothelial and perivascular cells (Supplementary Figure 2e, 3m)
+DimPlot(MEN, reduction = "umap", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, group.by = "Cellclusters",
+cols = c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T-cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B-cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Tumor stem cells'= '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cell' = '#CEB6AE', 'Mast cells' = '#89D0F5', 'EndoMT' = '#EDC6A6'))
+
+#End
+```
+

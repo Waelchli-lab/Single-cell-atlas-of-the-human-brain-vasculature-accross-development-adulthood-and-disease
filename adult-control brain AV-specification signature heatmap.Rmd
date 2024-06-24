@@ -1,0 +1,280 @@
+---
+title: "Heatmap of adult/control brain ECs Arteriovenous (AV) specification signature gene expression"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the fetal brain (CNS) sorted CD31+/CD45- endothelial cells - Figure 3d
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(FETAL, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the Adult control brain (temporal lobe) sorted endothelial cells - Figure 3h
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the Adult control brain (temporal lobe) sorted endothelial cells
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(TL, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells - Extended Data Figure 4d
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(AVM, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells - Extended Data Figure 4l  
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(LGG, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells - Extended Data Figure 4p  
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(GBM, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the Metastasis (MET) sorted CD31+/CD45- endothelial cells - Extended Data Figure 4t   
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(MET, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the Meningioma (MEN) sorted CD31+/CD45- endothelial cells - Extended Data Figure 4x    
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells  
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(MEN, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the overall merge of pathological sorted CD31+/CD45- endothelial cells - Figure 3l     
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+PATH <- readRDS(file = "Overall merge of pathological sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(PATH, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```
+
+
+```{r}
+#Adult/control brain arteriovenous (AV) specification signature gene expression analysis on the overall merge of tumor sorted CD31+/CD45- endothelial cells - Extended Data Figure 4h  
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+# Load table of the adult/control brain arteriovenous (AV) specification signature genes
+AV <- read.table("adult-control brain ECs Arteriovenous (AV) specification signature.txt", header = FALSE)
+
+
+# Load the seurat object of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+TUM <- readRDS(file = "Overall merge of tumor sorted endothelial cells_seurat object.rds")
+
+#compute average expression of each gene in the different endothelial clusters
+AV_markers <- AverageExpression(TUM, assays = "RNA", features = AV$V1, return.seurat = FALSE, group.by = "ECclusters", add.ident = NULL, slot = "data", verbose = TRUE)
+AV_markers_dataframe <- as.data.frame(AV_markers)
+AV_markers_dataframe2 <- AV_markers_dataframe[, c("RNA.Large.artery","RNA.Artery", "RNA.Arteriole","RNA.Angiogenic.capillary", "RNA.Capillary","RNA.Venule","RNA.Vein", "RNA.Large.vein","RNA.Mitochondrial", "RNA.EndoMT","RNA.Proliferating.EndoMT", "RNA.Proliferating.cell", "RNA.Stem.to.EC","RNA.Proliferating.Stem.to.EC")]
+
+# plot heatmap
+brewer.pal.info
+cols <- rev(brewer.pal(12,"RdYlBu"))
+heatmaply(AV_markers_dataframe2, scale = "row", trace = "none", colors = cols, grid_gap = 0, dendrogram = ("none")) %>% layout(width=1200, height = 900)
+
+#End 
+```

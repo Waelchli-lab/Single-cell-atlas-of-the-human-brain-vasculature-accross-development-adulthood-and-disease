@@ -1,0 +1,100 @@
+---
+title: "Top entity (endothelial) markers heatmap"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Top entity (endothelial) markers heatmap - Figure 1b
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+#Load the seurat object of the overall merge of all sorted (brain and periphery) CD31+/CD45- endothelial cells - Figure 1b
+EC <- readRDS(file = "Overall merge of all sorted brain and peripehry endothelial cells_seurat object.rds")
+
+# set default assay to RNA
+DefaultAssay(EC) <- "RNA"
+
+# Input the the top entity markers features to plot
+features = c("TTN","PRXL2A","TFRC" ,"NPIPB5","SLC7A1",
+             "IGFBP5","COL4A1","MARCKS","FABP5","PRCP",
+             "ADIRF","IFI27","LY6E","LGALS3", "CD320",
+             "MGP","CCL2","SOD2", "TM4SF1","ACKR1",
+             "CCN2","PLCG2","IFNGR1","EPAS1","TACC1", 
+             "ANGPT2","CA2","SPINK8", "APLN","CTGF",
+              "CYTOR","INHBB","INSR","SERPINA5", "ADAMTS5",
+             "RBP7","GSN","TXNIP","PLPP1","AQP1")
+
+
+# Get the average expression per cluster and convert to data frame
+markers <- AverageExpression(EC, assays = "RNA", features = features, return.seurat = FALSE, group.by = "PATH", add.ident = NULL, slot = "data", verbose = TRUE)
+
+
+markers_dataframe <- as.data.frame(markers)
+
+
+# Arrange the dataframe according to the order you need
+markers_dataframe2 <- markers_dataframe[, c("RNA.FETALCNS","RNA.FETALPERIPH","RNA.TL","RNA.AVM","RNA.LGG","RNA.GBM","RNA.MET","RNA.MEN")]
+
+
+# plot the heatmap
+heatmaply(markers_dataframe2, scale = "row", colors = c("#0571b0","white","#ca0020"), grid_gap = 1,dendrogram = ("none")) %>% layout(width=1000, height = 1400)
+
+
+
+
+#End 
+```
+
+
+
+```{r}
+#Top entity (endothelial) markers heatmap - Fetal brain vs fetal periphery vs adult/control brain vs brain tumors vs brain vascular malformations - Extended Data Figure 1h -
+
+#load libraries 
+library("heatmaply")
+library(Seurat)
+library(dplyr)
+library(scales)
+library(ggplot2)
+library(RColorBrewer)
+
+#Load the seurat object of the overall merge of all sorted (brain and periphery) CD31+/CD45- endothelial cells
+EC <- readRDS(file = "Overall merge of all sorted brain and peripehry endothelial cells_seurat object.rds")
+
+# set default assay to RNA
+DefaultAssay(EC) <- "RNA"
+
+# Input the the top entity markers features to plot
+features = c("MT-RNR1","MT-RNR2","TTN","PRXL2A","TFRC","SLC7A5","NPIPB5","SLC7A1","APCDD1","SLC38A5","FN1","SLC39A10","SLC16A1","ABLIM1","CGNL1","GTF2I","RELL1", "SEPTIN7","IGFBP5", "ATP5F1E","COL4A1", "MARCKS","FABP5","PRCP","COL4A2","ATP5MC2","IGF2","STMN1","SEPTIN2","IGFBP2","ATP5PF","COL6A2","LGALS1", "PALM2-AKAP2","APLNR","MARCKSL1","ADIRF","MT1E","CLDN5","SLC2A1","NET1","LY6E","TSC22D1","HERPUD1","BSG","ITM2A","LGALS3","MT1M","CD320","ABCG2","IFI6", "SLCO1A2", "SRARP","BST2","MGP","CCL2","SOD2","TM4SF1","MT2A","TIMP1","CLU","ACKR1","SELE","IER3","VCAM1","S100A6","PDLIM1","NNMT","NFKBIA","MALAT1-ENSG00000251562","IL6","CXCL2",
+"SPRY1","SPARC","IGFBP7","INSR","ANGPT2","SPARCL1","RGCC","ATP5E","CA2","VWA1","PLVAP","GSN","CTGF","PLPP1","IGFBP3","HSPG2","ARHGDIB")
+
+
+Idents(EC) <- "PATH"
+EC <- RenameIdents(EC, 'GBM' = 'brain tumors', 'LGG' = 'brain tumors', 'MEN' = 'brain tumors', 'MET' = 'brain tumors')
+EC$PATH2 <- EC@active.ident
+
+# Get the average expression per cluster and convert to data frame
+markers <- AverageExpression(EC, assays = "RNA", features = features, return.seurat = FALSE, group.by = "PATH2", add.ident = NULL, slot = "data", verbose = TRUE)
+
+
+markers_dataframe <- as.data.frame(markers)
+
+
+# Arrange the dataframe according to the order you need
+markers_dataframe2 <- markers_dataframe[, c("RNA.FETALCNS","RNA.FETALPERIPH","RNA.TL","RNA.AVM","RNA.brain.tumors")]
+
+
+# plot the heatmap
+heatmaply(markers_dataframe2, scale = "row", colors = c("#0571b0","white","#ca0020"), grid_gap = 1,dendrogram = ("none")) %>% layout(width=600, height = 1000)
+
+
+
+#End 
+```

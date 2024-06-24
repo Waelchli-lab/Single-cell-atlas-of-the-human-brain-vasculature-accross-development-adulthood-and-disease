@@ -1,0 +1,144 @@
+---
+title: "scCODA compositional analysis"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+ 
+
+```{r}
+#scCODA compositional analysis - Supplementary Table 10
+#load libraries 
+library(Seurat)
+library(SeuratData)
+library(SeuratDisk)
+
+##convert Seurat to anndata object 
+
+#Load seurat object of the overall merge of CD31+/CD45- sorted endothelial cells
+ALLEC <- readRDS(file = "Overall merge of all sorted endothelial cells_seurat object.rds")
+
+#Extract the count matrix
+exprs <- as.matrix(ALLEC@assays[["RNA"]]@data)
+#Extract the UMAP coordinates
+embedding <- Embeddings(ALLEC, "UMAP")
+#Extract the metadata
+meta <- ALLEC[[]]
+
+```
+
+```{python}
+#load libraries 
+import scanpy as sc
+import pandas as pd
+import numpy as np
+
+#Construct a scanpy object
+adata_seurat = sc.AnnData(X = r.exprs.T, obs = r.meta)
+adata_seurat.obsm['umap'] = r.embedding
+adata_seurat.write("ALLEC_scanpy.h5ad")
+```
+
+#in ubuntu
+python
+import anndata
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+from sccoda.util import cell_composition_data as dat
+from sccoda.util import data_visualization as viz
+
+import sccoda.datasets as scd
+adata = sc.read('ALLEC_scanpy.h5ad')
+
+#define covariate dataframe 
+cov_df = pd.DataFrame({"Cond":["FETALCNS","FETALCNS","FETALCNS","FETALCNS",
+"TL","TL","TL","TL","TL","TL","TL","TL","TL","AVM","AVM","AVM","AVM","AVM","LGG","LGG","LGG","LGG","LGG","LGG","GBM","GBM","GBM","GBM","GBM","GBM","GBM","GBM","MET","MET","MET","MET","MET","MEN","MEN","MEN","MEN","MEN"]}, index=['FETALCNS1', 'FETALCNS2-3','FETALCNS4','FETALCNS5','TL1','TL2','TL3','TL4','TL5','TL6','TL7', 'TL9','TL10',
+'AVM1','AVM2','AVM3','AVM4','AVM5', 'LGG1','LGG2','LGG3','LGG4','LGG5','LGG6',
+'GBM1','GBM2','GBM3','GBM4','GBM5','GBM6','GBM7','GBM8','MET1','MET2','MET3','MET4','MET5','MEN1','MEN2','MEN3','MEN4','MEN5'])
+
+                                             
+obs= dat.from_scanpy(adata,cell_type_identifier="ECclusters", sample_identifier="Patient",covariate_df=cov_df)
+
+#plot stacked bargraphs and boxplots
+viz.stacked_barplot(obs, feature_name="Cond", dpi=300)
+plt.savefig('bar_plots.pdf')
+
+viz.boxplots(obs, feature_name="Cond", add_dots=True, dpi=900)
+plt.savefig('box_plot2.pdf')
+
+viz.boxplots(obs, feature_name="Cond", plot_facets=True, dpi=900)
+plt.savefig('box_plot_bycell.pdf')
+
+
+viz.boxplots(obs, feature_name="Cond", add_dots=True,plot_facets=True, dpi=900)
+plt.savefig('box_plot_bycell_dotsON.pdf')
+
+
+import arviz as az
+
+from sccoda.util import comp_ana as mod
+from sccoda.util import cell_composition_data as dat
+from sccoda.util import data_visualization as viz
+
+
+#Finding a reference cell type
+viz.rel_abundance_dispersion_plot(
+    data=obs,
+    abundant_threshold=0.9
+)
+plt.savefig('reference cell type.pdf')
+
+model_all = mod.CompositionalAnalysis(obs, formula="Cond")
+all_results = model_all.sample_hmc()
+all_results.summary()
+
+print(all_results.credible_effects())
+
+path = "test"
+
+all_results.save(path)
+
+df = pd.read_pickle("./test.pkl")
+
+model_salm_switch_cond = mod.CompositionalAnalysis(obs, formula="C(Cond, Treatment('TL'))")
+
+switch_results = model_salm_switch_cond.sample_hmc()
+switch_results.summary()
+switch_results.summary_extended()
+
+df= switch_result.intercept_df
+
+df= switch_results.intercept_df
+df.to_excel('results.intercept.xls')
+
+df= switch_results.effect_df
+df.to_excel('results.effect.xls')
+
+df= switch_results.extended_effect_df
+
+
+path = "testswitch"
+switch_results.save(path)
+
+
+az.plot_trace(
+    switch_results,
+    divergences=False,
+    var_names=["alpha", "beta"],
+    coords={"cell_type": switch_results.coords["Mitochonrial"]},
+)
+plt.show()
+
+
+az.plot_trace(
+    switch_results,
+    divergences=False,
+    var_names=["alpha", "beta"])
+
+plt.savefig('diag.pdf')
+
+

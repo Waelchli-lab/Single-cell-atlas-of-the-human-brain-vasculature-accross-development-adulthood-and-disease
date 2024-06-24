@@ -1,0 +1,615 @@
+---
+title: "RNA velocity analysis of sorted endothelial cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{python}
+##RNA velocity analysis of sorted endothelial cells - 
+##Extended Data Figure 5, Supplementary Figure 13I
+
+#RNA Velocity analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('Fetal CNS sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+
+```{python}
+#RNA Velocity analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('Adult control brain (temporal lobe) sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+```{python}
+#RNA Velocity analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('AVM sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+
+```{python}
+#RNA Velocity analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('LGG sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+```{python}
+#RNA Velocity analysis of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells
+adata = sc.read('GBM sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+```{python}
+#RNA Velocity analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('MET sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+
+```{python}
+#RNA Velocity analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+adata = sc.read('MEN sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+
+```{python}
+#RNA Velocity analysis of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+adata = sc.read('Overall merge of pathological sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```
+
+```{python}
+#RNA Velocity analysis of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+#start python
+python
+
+#load libraries
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+import scanpy as sc
+
+#load the h5ad file of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+adata = sc.read('Overall merge of tumor sorted endothelial cells_RNA velocity.h5ad')
+
+#Running RNA Velocity
+scv.pp.filter_and_normalize(adata)
+scv.pp.moments(adata)
+scv.tl.velocity(adata, mode = "stochastic")
+scv.tl.velocity_graph(adata)
+
+#Plot RNA Velocity stream
+scv.pl.velocity_embedding_stream(adata, basis='umap', palette={'EndoMT': '#70fb52', 'Stem-to-EC': '#4cd7a4', 'Mitochondrial': '#f1b77c', 'Angiogenic capillary': '#c300fe', 'Capillary': '#fb00c9', 'Large artery': '#a1000b', 'Artery': '#d0000d','Vein': '#29e2e6', 'Large vein': '#0000b3',  'Venule': '#6dc4fd', 'Arteriole': '#d13b18', 'Proliferating cell': '#FBFF00', 'Proliferating Stem-to-EC': '#89e56b', 'Proliferating EndoMT': '#affd2d'}, dpi=300,legend_align_text='xy',legend_fontsize=6, legend_fontweight= 'normal')
+
+
+#TO plot latent time
+scv.tl.recover_dynamics(adata)
+scv.tl.latent_time(adata)
+scv.pl.scatter(adata, color="latent_time", color_map="gnuplot")
+
+
+top_genes = adata.var["fit_likelihood"].sort_values(ascending=False).index[:300]
+top_genes_df = pd.DataFrame(top_genes)
+top_genes_df.to_excel('top_genes.xls', index=False)
+scv.pl.heatmap(adata, var_names=top_genes, sortby="latent_time", col_color="clusters", n_convolve=100)
+
+#VELOCITY LENGTH AND CONFIDENCE
+scv.tl.velocity_confidence(adata)
+keys = 'velocity_length', 'velocity_confidence'
+scv.pl.scatter(adata, c=keys, cmap='coolwarm', perc=[5, 95])
+
+df = adata.obs.groupby('clusters')[keys].mean().T
+df2=df.style.background_gradient(cmap='coolwarm', axis=1) 
+df.style.background_gradient(cmap='coolwarm', axis=1).to_excel('velocitylength_confidence_df.xlsx', engine='openpyxl')
+
+
+#VELOCITY pseudotime
+scv.pl.velocity_graph(adata, threshold=.05, color='clusters')
+scv.tl.velocity_pseudotime(adata)
+scv.pl.scatter(adata, color='velocity_pseudotime', cmap='gnuplot')
+
+
+#PAGA velocity graph
+adata.uns['neighbors']['distances'] = adata.obsp['distances']
+adata.uns['neighbors']['connectivities'] = adata.obsp['connectivities']
+scv.tl.paga(adata, groups='clusters')
+df = scv.get_df(adata, 'paga/transitions_confidence', precision=2).T
+df.style.background_gradient(cmap='Blues').format('{:.2g}').to_excel('PAGA.xlsx', engine='openpyxl')
+
+scv.pl.paga(adata, basis='umap', size=50, alpha=.1,min_edge_width=2, node_size_scale=1.5)
+
+#End
+```

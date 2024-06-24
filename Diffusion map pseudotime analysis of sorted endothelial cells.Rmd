@@ -1,0 +1,617 @@
+---
+title: "Diffusion map pseudotime analysis of sorted endothelial cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+##related to Supplementary Figure 13II
+
+#Diffusion map pseudotime analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+# Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(FETAL, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary','Capillary','Venule','Vein','Large vein','Mitochondrial','EndoMT','Proliferating EndoMT', 'Proliferating cell','Stem-to-EC','Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap1 <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(FETAL) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(FETAL))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster )
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "Fetal CNS sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+#Diffusion map pseudotime analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+# Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(TL, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap1 <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(TL) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(TL))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "Adult control brain (temporal lobe) sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+#Diffusion map pseudotime analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+
+# Load the seurat object
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(AVM, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap1 <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(AVM) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(AVM))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "AVM sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+#Diffusion map pseudotime analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+
+# Load the seurat object
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(LGG, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap1 <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(LGG) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(LGG))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "LGG sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+# Diffusion map pseudotime analysis of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+# Load the seurat object
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(GBM, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(GBM) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(GBM))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "GBM sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+# Diffusion map pseudotime analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells  
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+
+# Load the seurat object
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(MET, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(MET) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(MET))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "MET sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```
+
+```{r}
+#Source1: https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+# Diffusion map pseudotime analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells   
+
+#load libraries 
+library(destiny)
+library(Seurat)
+library(ggplot2)
+library(SingleCellExperiment)
+library(future)
+library(ggbeeswarm)
+library(rgl)
+library(viridis)
+
+
+# Load the seurat object
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+# Convert the seurat object to a singlecellexperiment(sce) object 
+sce <- as.SingleCellExperiment(MEN, assay ="RNA")
+
+
+# Make a diffusion map.
+dm <- DiffusionMap(sce, verbose = TRUE)
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2).
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],DC2 = eigenvectors(dm)[, 2],Timepoint = sce$ECclusters)
+
+# Plot diffusion map
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial','EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +geom_point() + scale_color_manual(values = my_color)+ xlab("Diffusion component 1") + ylab("Diffusion component 2") + theme_classic()
+
+
+
+# plot  diffusion component 1 (DC1) as a measure of pseudotime.
+sce$pseudotime_diffusionmap <- rank(eigenvectors(dm)[,1])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap1, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (first diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+# if one wants to plot diffusion component 2 (DC2) as well, as a measure of pseudotime.
+sce$pseudotime_diffusionmap2 <- rank(eigenvectors(dm)[,2])
+
+ggplot(as.data.frame(colData(sce)), 
+aes(x = pseudotime_diffusionmap2, y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+geom_quasirandom(groupOnX = FALSE) +
+scale_color_manual(values = my_color) + theme_classic() +
+xlab("Diffusion map pseudotime (second diffusion map component)") + ylab("Cell type") +
+ggtitle("Cells ordered by diffusion map pseudotime")
+
+
+#Plot 3D diffusion map
+Idents(MEN) <- "ECclusters"
+
+colors_cluster <- c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')[as.character(Idents(MEN))]
+
+plot3d(eigenvectors(dm)[, 1:3], col =colors_cluster)
+rgl.snapshot('3dplot.png', fmt = 'png')
+
+
+# Plot eigenvalues of diffusion distance matrix (This is analagous to the PC elbow plot)
+# many PCs to use in downstream applications like clustering.
+plot(eigenvalues(dm), ylim = 0:1, pch = 20, xlab = 'Diffusion component (DC)', ylab = 'Eigenvalue')
+
+
+
+#plot umap of pseudotime diffusion map
+seurat <- as.Seurat(sce)
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap1"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+FeaturePlot(seurat, features = ("pseudotime_diffusionmap2"), reduction = 'UMAP',pt.size = 1) + scale_color_viridis(discrete = FALSE, option = "E")    
+
+
+saveRDS(dm, file = "MEN sorted endothelial cells_diffusionmap.rds")         
+
+#End
+```

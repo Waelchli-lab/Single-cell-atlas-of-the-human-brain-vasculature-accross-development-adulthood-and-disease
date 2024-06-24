@@ -1,0 +1,89 @@
+---
+title: "Mapping our datasets to publicly available datasets"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+library(Seurat)
+#Mapping our datasets to publicly available datasets related to Supplementary Figure 4
+#source: https://satijalab.org/seurat/articles/integration_mapping.html
+
+#load reference and query data-sets
+#the reference data-set one wants to map to is hereby called "ref"
+
+query <- readRDS(file = "query.rds")
+ref <- readRDS(file = "ref.rds")
+
+
+query <- FindVariableFeatures(query, selection.method = "vst", nfeatures = 3000, verbose = FALSE)
+ref <- FindVariableFeatures(ref, selection.method = "vst", nfeatures = 3000, verbose = FALSE)
+
+#Seurat supports the projection of reference data onto a query object.
+#the procedure begins by identifying anchors
+anchors_ref.query <- FindTransferAnchors(reference = ref, query =query, project.query = TRUE, dims = 1:30, normalization.method = "LogNormalize")
+
+#after finding anchors, we use the TransferData() function to classify the query cells based on reference data
+#"TransferData()" returns a matrix with predicted IDs and prediction scores, which we can add to the query metadata.
+predictions <- TransferData(anchorset = anchors_ref.query, refdata = ref$Annotation2, dims = 1:20)
+
+query <- AddMetaData(query, metadata = predictions)
+
+
+#plot prediction score umap
+FeaturePlot(object = query, features = "prediction.score.max", reduction = "umap", pt.size = 1.5)
+
+
+
+#Modify the cell identities in the seurat object based on the max prediction score. Only consider scores above 0.5. 
+
+cells_aboveThreshold = query@meta.data$prediction.score.max > 0.5
+new_Idents = query@meta.data$predicted.id
+new_Idents[!cells_aboveThreshold] = "Unassigned"
+Idents(query) = new_Idents
+query <- AddMetaData(query, metadata = as.factor(new_Idents), col.name = "ref_clusters")
+
+
+#plot predicted ID on umap
+DimPlot(query, reduction = "umap", group.by = "ref_clusters", label = TRUE, repel = TRUE, label.size = 4.5, pt.size = 1)
+
+
+#plot sankey plot to visulaize mapping results
+library(tidyverse)
+library(viridis)
+library(patchwork)
+library(hrbrthemes)
+library(circlize)
+library(networkD3)
+library(dplyr)
+
+
+# extract metadata:
+metadata <- as.data.frame(as.matrix(query@meta.data))
+nodes <- data.frame(name=c(as.character(metadata$Annotation2), as.character(metadata$ref_clusters)) %>% unique())
+
+
+
+#to arrange nodes as you like:
+x <- c("TL_Microglia&Macrophages","TL_Endothelial cells","TL_T-cells","TL_Oligodendrocytes","TL_Pericytes","TL_Smooth muscle cells","TL_Astrocytes","TL_Fibroblasts","TL_Neural stem cells","TL_Neurons","TL_Neuron progenitor",
+"Microglia","EC","T cell","Oligo","Pericyte","SMC","Astrocyte","P. Fibro","M. Fibro","Neuron","OPC","Unassigned")
+
+
+nodes <- nodes %>% slice(match(x, name))
+metadata$IDsource=match(metadata$Annotation2, nodes$name)-1 
+metadata$IDtarget=match(metadata$ref_clusters, nodes$name)-1
+nodes$name <- gsub(" ", "-", nodes$name)
+
+ColourScal = 'd3.scaleOrdinal() .domain(["TL_Microglia&Macrophages","TL_Endothelial-cells","TL_T-cells","TL_Oligodendrocytes","TL_Pericytes","TL_Smooth-muscle-cells","TL_Astrocytes","TL_Fibroblasts","TL_Neural-stem-cells","TL_Neurons","TL_Neuron-progenitor","Microglia","EC","T-cell","Oligo","Pericyte","SMC","Astrocyte","P.-Fibro","M.-Fibro","Neuron","OPC","Unassigned"])
+.range(["#8585C0","#EDC6B5", "#A9B1F6", "#92B1B1", "#E4AD5B","#A9995B" , "#ABD8B5", "#BF9C00", "#F8E6FC",
+"#EEDE84", "#EEFF97", "#8585C0", "#EDC6B5", "#A9B1F6","#92B1B1","#E4AD5B","#A9995B","#ABD8B5","#ba9907",
+"#947904","#EEDE84","#748f8f","#A0A0A0"])'
+
+
+
+#plot sankey
+sankeyNetwork(Links = metadata, Nodes = nodes, Source = "IDsource", Target = "IDtarget",Value = "prediction.score.max", NodeID = "name",sinksRight= FALSE, colourScale=ColourScal, nodeWidth=100, fontSize=15, nodePadding=10, LinkGroup = "predicted.id", height = 500, width = 1000,iterations = 0, fontFamily = "Arial")
+
+#END
+```
+

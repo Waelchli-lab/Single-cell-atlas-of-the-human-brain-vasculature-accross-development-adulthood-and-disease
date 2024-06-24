@@ -1,0 +1,2185 @@
+---
+title: "CellChat ligand receptor interaction analysis of unsorted endothelial and perivascular cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+##CellChat ligand receptor interaction analysis of unsorted endothelial and perivascular cells -
+##related to Extended Data Figures 12, 13
+
+#CellChat ligand receptor interaction analysis of the fetal brain (CNS) unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS unsorted endothelial and perivascular cells_seurat object.rds")
+
+#set default assay to "RNA"
+DefaultAssay(FETAL) <- "RNA"
+
+#set idenities to cell annotation
+Idents(FETAL) <- "Cellclusters"
+
+levels(FETAL) <- c("Smooth muscle cells","Oligodendrocytes","Microglia and Macrophages","Fibroblasts","Endothelial cells","Pericytes","Astrocytes" ,"Stem cells","Neurons","Erythroid cells")
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(FETAL, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(FETAL)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5', 'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+
+group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+
+cellchat <- liftCellChat(cellchat, group)
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordeplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 8, targets.use = c(1:18), color.use = colours)
+
+#MHC-II_chordeplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:18), targets.use =8, color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "Fetal CNS unsorted endothelial and perivascular cells_CellChat object.rds")
+
+```
+
+
+```{r}
+# CellChat ligand receptor interaction analysis of the adult control brain unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) unsorted endothelial and perivascular cells_seurat object.rds")
+
+#set default assay to "RNA"
+DefaultAssay(TL) <- "RNA"
+
+#set idenities to cell annotation
+Idents(TL) <- "Cellclusters"
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(TL, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(TL)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5',
+'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+
+group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+cellchat <- liftCellChat(cellchat, group)
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+strwidth <- function(x) {0.5}
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours, pt.title = 7)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 8, targets.use = c(1:18), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:18), targets.use =8, color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "Adult control brain unsorted endothelial and perivascular cells_CellChat object.rds")
+
+```
+
+```{r}
+# CellChat ligand receptor interaction analysis of the pathological brains unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+PATH <- readRDS(file = "Overall merge of pathological unsorted endothelial and perivascular cells_seurat object.rds")
+
+#set default assay to "RNA"
+DefaultAssay(PATH) <- "RNA"
+
+#set idenities to cell annotation
+Idents(PATH) <- "Cellclusters"
+
+PATH <- RenameIdents(PATH, 'T-cells' = 'T cells', 'B-cells' = 'B cells')
+
+PATH$Cellclusters <- PATH@active.ident
+
+levels(PATH) <- c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils","NK cells","Fibroblasts","Endothelial cells","B cells",
+                  "Pericytes","Stem cells","Tumor cells","Erythroid cells","Mast cells")
+
+PATH$Cellclusters <- PATH@active.ident
+
+
+
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(PATH, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(PATH)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5',
+'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+
+
+
+group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+cellchat <- liftCellChat(cellchat, group)
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 8, targets.use = c(1:18), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:18), targets.use =8, color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "Pathological brains unsorted endothelial and perivascular cells_CellChat object.rds")
+```
+
+```{r}
+#Comparison analysis of Adult control brain (temporal lobe) and pathological brain cells CellChat datasets 
+
+TL <- readRDS(file = "Adult control brain unsorted endothelial and perivascular cells_CellChat object.rds")
+PATH <- readRDS(file = "Pathological brains unsorted endothelial and perivascular cells_CellChat object.rds")
+
+object.list <- list(TL = TL, PATH = PATH)
+cellchat <- mergeCellChat(object.list, add.names = names(object.list))
+
+gg1 <- compareInteractions(cellchat, show.legend = F, group = c(1,2))
+gg2 <- compareInteractions(cellchat, show.legend = F, group = c(1,2), measure = "weight")
+gg1 + gg2
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5',
+'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_diffInteraction(cellchat, weight.scale = T, color.use = colours)
+netVisual_diffInteraction(cellchat, weight.scale = T, measure = "weight", color.use = colours)
+
+
+gg1 <- netVisual_heatmap(cellchat,color.use = colours)
+#> Do heatmap based on a merged object
+gg2 <- netVisual_heatmap(cellchat, measure = "weight", color.use = colours)
+#> Do heatmap based on a merged object
+gg1 + gg2
+
+weight.max <- getMaxWeight(object.list, attribute = c("idents","count"))
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$count, weight.scale = T, color.use = colours,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Number of interactions - ", names(object.list)[i]))
+}
+
+
+weight.max <- getMaxWeight(object.list, attribute = c("idents","weight"))
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$weight, weight.scale = T,color.use = colours,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Strength of interactions - ", names(object.list)[i]))
+}
+
+# Compare the major sources and targets in 2D space
+num.link <- sapply(object.list, function(x) {rowSums(x@net$count) + colSums(x@net$count)-diag(x@net$count)})
+weight.MinMax <- c(min(num.link), max(num.link)) # control the dot size in the different datasets
+gg <- list()
+for (i in 1:length(object.list)) {
+  gg[[i]] <- netAnalysis_signalingRole_scatter(object.list[[i]], title = names(object.list)[i], weight.MinMax = weight.MinMax, color.use = colours)
+}
+patchwork::wrap_plots(plots = gg)
+
+
+#scatter plot per cell type
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Smooth muscle cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Oligodendrocytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "T cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Microglia and Macrophages", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neutrophils", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "NK cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Endothelial cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "B cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Pericytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Astrocytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Stem cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neurons", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neuron progenitor", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Tumor cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Erythroid cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Mast cells", font.size = 15,label.size = 3, font.size.title = 15)
+
+#Identify the conserved and context-specific signaling pathways
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "functional", label.size = 2)
+
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "structural", label.size = 1)
+
+rankSimilarity(cellchat, type = "functional")
+col = c("TL"="turquoise3","PATH"="#f8766d")
+gg1 <- rankNet(cellchat, mode = "comparison", stacked = T, do.stat = TRUE, color.use = col)
+gg2 <- rankNet(cellchat, mode = "comparison", stacked = F, do.stat = TRUE, color.use = col)
+gg1 + gg2
+
+
+#plot heatmap of signalling patterns
+library(ComplexHeatmap)
+i = 1
+pathway.union <- union(object.list[[i]]@netP$pathways, object.list[[i+1]]@netP$pathways)
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.heatmap = "GnBu", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.heatmap = "GnBu", color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "all", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.heatmap = "OrRd", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "all", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.heatmap = "OrRd", color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+
+
+#compare communication probabilities in pathological (PATH) vs adult control brain (TL) endothelial cells
+netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),  comparison = c(1, 2), angle.x = 45)
+netVisual_bubble(cellchat, sources.use = c(1:17), targets.use = 8,  comparison = c(1, 2), angle.x = 45)
+
+
+#we can identify the up-regulated (increased) and down-regulated (decreased) signaling ligand-receptor pairs 
+
+gg1 <- netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),  comparison = c(1, 2), max.dataset = 2, title.name = "Increased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg2 <- netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),  comparison = c(1, 2), max.dataset = 1, title.name = "Decreased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg1 + gg2
+
+
+gg1 <- netVisual_bubble(cellchat, sources.use = c(1:17), targets.use =8,  comparison = c(1, 2), max.dataset = 2, title.name = "Increased signaling in PATH", angle.x = 45, remove.isolate = T)
+# Comparing communications on a merged object
+gg2 <- netVisual_bubble(cellchat, sources.use = c(1:17), targets.use = 8,  comparison = c(1, 2), max.dataset = 1, title.name = "Decreased signaling in PATH", angle.x = 45, remove.isolate = T)
+# Comparing communications on a merged object
+gg1 + gg2
+
+
+# Identify dysfunctional signaling by using differential expression analysis
+pos.dataset = "PATH"
+features.name = pos.dataset
+cellchat <- identifyOverExpressedGenes(cellchat, group.dataset = "datasets", pos.dataset = pos.dataset, features.name = features.name, only.pos = FALSE, thresh.pc = 0.1, thresh.fc = 0.1, thresh.p = 1)
+net <- netMappingDEG(cellchat, features.name = features.name)
+# extract the ligand-receptor pairs with up-regulated ligands in PATH
+net.up <- subsetCommunication(cellchat, net = net, datasets = "PATH",ligand.logFC = 0.1, receptor.logFC = 0.1)
+# extract the ligand-receptor pairs with up-regulated ligands and up-regulated receptors in TL, i.e.,down-regulated in PATH
+net.down <- subsetCommunication(cellchat, net = net, datasets = "PATH",ligand.logFC = -0.1, receptor.logFC = -0.1)
+
+gene.up <- extractGeneSubsetFromPair(net.up, cellchat)
+gene.down <- extractGeneSubsetFromPair(net.down, cellchat)
+
+
+#bubble plot - EC as source
+pairLR.use.up = net.up[, "interaction_name", drop = F]
+gg1 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.up, sources.use = 8, targets.use = c(1:17), comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+pairLR.use.down = net.down[, "interaction_name", drop = F]
+gg2 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.down, sources.use = 8, targets.use = c(1:17), comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Down-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+gg1 + gg2
+
+#bubble plot - EC as target
+pairLR.use.up = net.up[, "interaction_name", drop = F]
+gg1 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.up, sources.use = c(1:14), targets.use =8, comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+pairLR.use.down = net.down[, "interaction_name", drop = F]
+gg2 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.down, sources.use = c(1:14), targets.use = 8, comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Down-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+gg1 + gg2
+
+
+par(mfrow = c(1,1), xpd=TRUE)
+netVisual_chord_gene(object.list[[2]], sources.use = 8, targets.use = c(1:14), slot.name = 'net',color.use = colours, net = net.up, lab.cex = 0.8, small.gap = 3.5, title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+netVisual_chord_gene(object.list[[2]], sources.use = c(1:14), targets.use = 8, slot.name = 'net',color.use = colours, net = net.up, lab.cex = 0.8, small.gap = 3.5, title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+
+
+#Visually compare cell-cell communication using Hierarchy plot, Circle plot or Chord diagram for specific pathways
+pathways.show <- c("MHC-II") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("VEGF") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("NOTCH") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("ANGPT") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("ANGPTL") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("APELIN") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("MHC-II") 
+par(mfrow = c(1,2), xpd=TRUE)
+ht <- list()
+for (i in 1:length(object.list)) {
+    ht[[i]] <- netVisual_heatmap(object.list[[i]], color.use = colours,signaling = pathways.show, color.heatmap = "Reds",title.name = paste(pathways.show, "signaling ",names(object.list)[i]))
+}
+ComplexHeatmap::draw(ht[[1]] + ht[[2]], ht_gap = unit(0.5, "cm"))
+
+
+par(mfrow = c(1,1), xpd=TRUE)
+for (i in 1:length(object.list)) {
+    netVisual_aggregate(object.list[[i]], signaling = pathways.show,color.use = colours, layout = "chord", signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+plotGeneExpression(cellchat, signaling = "MHC-II", split.by = "datasets", colors.ggplot = T, color.use = col)
+
+
+saveRDS(cellchat, file = "Pathological vs adult control brain cells comparison_CellChat object.rds")
+```
+
+```{r}
+#Comparison analysis of Adult control brain (temporal lobe) and fetal brain cells CellChat datasets 
+
+TL <- readRDS(file = "Adult control brain unsorted endothelial and perivascular cells_CellChat object.rds")
+FETAL <- readRDS(file = "Fetal CNS unsorted endothelial and perivascular cells_CellChat object.rds")
+
+object.list <- list(TL = TL, FETAL = FETAL)
+cellchat <- mergeCellChat(object.list, add.names = names(object.list))
+
+gg1 <- compareInteractions(cellchat, show.legend = F, group = c(1,2))
+gg2 <- compareInteractions(cellchat, show.legend = F, group = c(1,2), measure = "weight")
+gg1 + gg2
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5',
+'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_diffInteraction(cellchat, weight.scale = T, color.use = colours)
+netVisual_diffInteraction(cellchat, weight.scale = T, measure = "weight", color.use = colours)
+
+gg1 <- netVisual_heatmap(cellchat,color.use = colours)
+#> Do heatmap based on a merged object
+gg2 <- netVisual_heatmap(cellchat, measure = "weight",color.use = colours)
+#> Do heatmap based on a merged object
+gg1 + gg2
+
+#number of interactions - circle plots
+weight.max <- getMaxWeight(object.list, attribute = c("idents","count"))
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$count, weight.scale = T, color.use = colours,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Number of interactions - ", names(object.list)[i]))
+}
+
+#strength of interactions - circle plots
+weight.max <- getMaxWeight(object.list, attribute = c("idents","weight"))
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$weight,color.use = colours, weight.scale = T,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Strength of interactions - ", names(object.list)[i]))
+}
+
+# Compare the major sources and targets in 2D space
+num.link <- sapply(object.list, function(x) {rowSums(x@net$count) + colSums(x@net$count)-diag(x@net$count)})
+weight.MinMax <- c(min(num.link), max(num.link)) # control the dot size in the different datasets
+gg <- list()
+for (i in 1:length(object.list)) {
+  gg[[i]] <- netAnalysis_signalingRole_scatter(object.list[[i]], title = names(object.list)[i], weight.MinMax = weight.MinMax, color.use = colours)
+}
+patchwork::wrap_plots(plots = gg)
+
+#scatter plot per cell type
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Smooth muscle cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Oligodendrocytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "T cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Microglia and Macrophages", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neutrophils", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "NK cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Endothelial cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "B cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Pericytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Astrocytes", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Stem cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neurons", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Neuron progenitor", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Erythroid cells", font.size = 15,label.size = 3, font.size.title = 15)
+netAnalysis_signalingChanges_scatter(cellchat, idents.use = "Mast cells", font.size = 15,label.size = 3, font.size.title = 15)
+
+#Identify the conserved and context-specific signaling pathways
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "functional", label.size = 1)
+
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "structural", label.size = 1)
+
+rankSimilarity(cellchat, type = "functional")
+col = c("TL"="turquoise3","FETAL"="#A0E4A8")
+gg1 <- rankNet(cellchat, mode = "comparison", stacked = T, do.stat = TRUE, color.use = col)
+gg2 <- rankNet(cellchat, mode = "comparison", stacked = F, do.stat = TRUE, color.use = col)
+gg1 + gg2
+
+
+#plot heatmap of signalling patterns
+library(ComplexHeatmap)
+i = 1
+pathway.union <- union(object.list[[i]]@netP$pathways, object.list[[i+1]]@netP$pathways)
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.heatmap = "GnBu", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.heatmap = "GnBu", color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "all", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 20, color.heatmap = "OrRd", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "all", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 20, color.heatmap = "OrRd", color.use = colours)
+draw(ht1 + ht2, ht_gap = unit(0.5, "cm"))
+
+
+
+#compare communication probabilities in fetal (FETAL) vs adult control brain (TL) endothelial and perivascular cells
+# Endothelial cells as source
+netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),comparison = c(1,2), angle.x = 45)
+# Endothelial cells as target
+netVisual_bubble(cellchat, sources.use = c(1:17), targets.use = 8,comparison = c(1,2), angle.x = 45)
+
+
+#we can identify the up-regulated (increased) and down-regulated (decreased) signaling ligand-receptor pairs 
+
+gg1 <- netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),  comparison = c(1, 2), max.dataset = 2, title.name = "Increased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg2 <- netVisual_bubble(cellchat, sources.use = 8, targets.use = c(1:17),  comparison = c(1, 2), max.dataset = 1, title.name = "Decreased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg1 + gg2
+
+
+gg1 <- netVisual_bubble(cellchat, sources.use = c(1:17), targets.use =8,  comparison = c(1, 2), max.dataset = 2, title.name = "Increased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg2 <- netVisual_bubble(cellchat, sources.use = c(1:17), targets.use = 8,  comparison = c(1, 2), max.dataset = 1, title.name = "Decreased signaling in PATH", angle.x = 45, remove.isolate = T)
+#> Comparing communications on a merged object
+gg1 + gg2
+
+
+# Identify dysfunctional signaling by using differential expression analysis
+pos.dataset = "FETAL"
+features.name = pos.dataset
+cellchat <- identifyOverExpressedGenes(cellchat, group.dataset = "datasets", pos.dataset = pos.dataset, features.name = features.name, only.pos = FALSE, thresh.pc = 0.1, thresh.fc = 0.1, thresh.p = 1)
+net <- netMappingDEG(cellchat, features.name = features.name)
+# extract the ligand-receptor pairs with up-regulated ligands in FETAL
+net.up <- subsetCommunication(cellchat, net = net, datasets = "FETAL",ligand.logFC = 0.1, receptor.logFC = 0.1)
+# extract the ligand-receptor pairs with up-regulated ligands and up-regulated receptors in TL, i.e.,down-regulated in FETAL
+net.down <- subsetCommunication(cellchat, net = net, datasets = "FETAL",ligand.logFC = -0.1, receptor.logFC = -0.1)
+
+gene.up <- extractGeneSubsetFromPair(net.up, cellchat)
+gene.down <- extractGeneSubsetFromPair(net.down, cellchat)
+
+pairLR.use.up = net.up[, "interaction_name", drop = F]
+gg1 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.up, sources.use = 8, targets.use = c(1:17), comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+pairLR.use.down = net.down[, "interaction_name", drop = F]
+gg2 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.down, sources.use = 8, targets.use = c(1:17), comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Down-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+gg1 + gg2
+
+
+pairLR.use.up = net.up[, "interaction_name", drop = F]
+gg1 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.up, sources.use = c(1:17), targets.use=8, comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+pairLR.use.down = net.down[, "interaction_name", drop = F]
+gg2 <- netVisual_bubble(cellchat, pairLR.use = pairLR.use.down, sources.use = c(1:17), targets.use=8, comparison = c(1, 2),  angle.x = 90, remove.isolate = T,title.name = paste0("Down-regulated signaling in ", names(object.list)[2]))
+#> Comparing communications on a merged object
+gg1 + gg2
+
+par(mfrow = c(1,1), xpd=TRUE)
+netVisual_chord_gene(object.list[[2]], sources.use = 8, targets.use = c(1:17), slot.name = 'net',color.use = colours, net = net.up, lab.cex = 0.8, small.gap = 3.5, title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+netVisual_chord_gene(object.list[[2]], sources.use = c(1:17), targets.use = 8, slot.name = 'net',color.use = colours, net = net.up, lab.cex = 0.8, small.gap = 3.5, title.name = paste0("Up-regulated signaling in ", names(object.list)[2]))
+
+
+#Visually compare cell-cell communication using Hierarchy plot, Circle plot or Chord diagram for specific pathways
+pathways.show <- c("MHC-II") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("VEGF") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+pathways.show <- c("NOTCH") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+pathways.show <- c("ANGPT") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+pathways.show <- c("ANGPTL") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+pathways.show <- c("APELIN") 
+weight.max <- getMaxWeight(object.list, slot.name = c("netP"), attribute = pathways.show) # control the edge weights across different datasets
+par(mfrow = c(1,2), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_aggregate(object.list[[i]], signaling = pathways.show, layout = "circle", color.use = colours, edge.weight.max = weight.max[1], edge.width.max = 10, signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+pathways.show <- c("MHC-II") 
+par(mfrow = c(1,2), xpd=TRUE)
+ht <- list()
+for (i in 1:length(object.list)) {
+    ht[[i]] <- netVisual_heatmap(object.list[[i]], color.use = colours,signaling = pathways.show, color.heatmap = "Reds",title.name = paste(pathways.show, "signaling ",names(object.list)[i]))
+}
+ComplexHeatmap::draw(ht[[1]] + ht[[2]], ht_gap = unit(0.5, "cm"))
+
+
+par(mfrow = c(1,1), xpd=TRUE)
+for (i in 1:length(object.list)) {
+    netVisual_aggregate(object.list[[i]], signaling = pathways.show,color.use = colours, layout = "chord", signaling.name = paste(pathways.show, names(object.list)[i]))
+}
+
+plotGeneExpression(cellchat, signaling = "MHC-II", split.by = "datasets", colors.ggplot = T, color.use = col)
+
+
+saveRDS(cellchat, file = "Fetal vs adult control brain cells comparison_CellChat object.rds")
+```
+
+
+```{r}
+#Comparison analysis of Adult control brain (temporal lobe), pathological brain and fetal brain cells CellChat datasets 
+
+TL <- readRDS(file = "Adult control brain unsorted endothelial and perivascular cells_CellChat object.rds")
+FETAL <- readRDS(file = "Fetal CNS unsorted endothelial and perivascular cells_CellChat object.rds")
+PATH <- readRDS(file = "Pathological brains unsorted endothelial and perivascular cells_CellChat object.rds")
+
+object.list <- list(FETAL = FETAL,TL = TL,PATH=PATH)
+cellchat <- mergeCellChat(object.list, add.names = names(object.list))
+
+col = c("TL"="turquoise3","FETAL"="#A0E4A8", "PATH"="#f8766d")
+gg1 <- compareInteractions(cellchat, show.legend = F, group = c(1,2,3), color.use = c("#A0E4A8","turquoise3","#f8766d"))
+gg2 <- compareInteractions(cellchat, show.legend = F, group = c(1,2,3), measure = "weight",color.use = c("#A0E4A8","turquoise3","#f8766d"))
+gg1 + gg2
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5',
+'Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+
+#number of interactions - circle plots
+weight.max <- getMaxWeight(object.list, attribute = c("idents","count"))
+par(mfrow = c(1,3), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$count, weight.scale = T, color.use = colours,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Number of interactions - ", names(object.list)[i]))
+}
+
+#strength of interactions - circle plots
+weight.max <- getMaxWeight(object.list, attribute = c("idents","weight"))
+par(mfrow = c(1,3), xpd=TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$weight,color.use = colours, weight.scale = T,label.edge= F, edge.weight.max = weight.max[2], edge.width.max = 12, title.name = paste0("Strength of interactions - ", names(object.list)[i]))
+}
+
+# Compare the major sources and targets in 2D space
+num.link <- sapply(object.list, function(x) {rowSums(x@net$count) + colSums(x@net$count)-diag(x@net$count)})
+weight.MinMax <- c(min(num.link), max(num.link)) # control the dot size in the different datasets
+gg <- list()
+for (i in 1:length(object.list)) {
+  gg[[i]] <- netAnalysis_signalingRole_scatter(object.list[[i]], title = names(object.list)[i], weight.MinMax = weight.MinMax, color.use = colours)
+}
+patchwork::wrap_plots(plots = gg)
+
+
+#Identify the conserved and context-specific signaling pathways
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "functional", label.size = 2)
+
+cellchat <- computeNetSimilarityPairwise(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+netVisual_embeddingPairwise(cellchat, type = "structural", label.size = 2)
+
+
+
+
+#plot heatmap of signalling patterns
+library(ComplexHeatmap)
+i = 1
+pathway.unionx <- union(object.list[[i]]@netP$pathways, object.list[[i+1]]@netP$pathways)
+pathway.union <- union(pathway.unionx, object.list[[i+2]]@netP$pathways)
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 27, color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 27, color.use = colours)
+ht3 = netAnalysis_signalingRole_heatmap(object.list[[i+2]], pattern = "outgoing", signaling = pathway.union, title = names(object.list)[i+2], width = 10, height = 27, color.use = colours)
+draw(ht1 + ht2 + ht3, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 27, color.heatmap = "GnBu", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 27, color.heatmap = "GnBu", color.use = colours)
+ht3 = netAnalysis_signalingRole_heatmap(object.list[[i+2]], pattern = "incoming", signaling = pathway.union, title = names(object.list)[i+2], width = 10, height = 27, color.heatmap = "GnBu", color.use = colours)
+draw(ht1 + ht2 + ht3, ht_gap = unit(0.5, "cm"))
+
+ht1 = netAnalysis_signalingRole_heatmap(object.list[[i]], pattern = "all", signaling = pathway.union, title = names(object.list)[i], width = 10, height = 27, color.heatmap = "OrRd", color.use = colours)
+ht2 = netAnalysis_signalingRole_heatmap(object.list[[i+1]], pattern = "all", signaling = pathway.union, title = names(object.list)[i+1], width = 10, height = 27, color.heatmap = "OrRd", color.use = colours)
+ht3 = netAnalysis_signalingRole_heatmap(object.list[[i+2]], pattern = "all", signaling = pathway.union, title = names(object.list)[i+2], width = 10, height = 27, color.heatmap = "OrRd", color.use = colours)
+draw(ht1 + ht2 + ht3, ht_gap = unit(0.5, "cm"))
+
+
+pathways.show <- c("MHC-II") 
+par(mfrow = c(1,3), xpd=TRUE)
+ht <- list()
+for (i in 1:length(object.list)) {
+    ht[[i]] <- netVisual_heatmap(object.list[[i]], color.use = colours,signaling = pathways.show, color.heatmap = "Reds",title.name = paste(pathways.show, "signaling ",names(object.list)[i]))
+}
+ComplexHeatmap::draw(ht[[1]] + ht[[2]] + ht[[3]], ht_gap = unit(0.5, "cm"))
+
+
+saveRDS(cellchat, file = "Fetal vs adult control vs Pathology brain cells comparison_CellChat object.rds")
+```
+
+
+```{r}
+# CellChat ligand receptor interaction analysis of the brain arteriovenous malformations unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+AVM <- readRDS(file = "AVM unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#set default assay to "RNA"
+DefaultAssay(AVM) <- "RNA"
+
+#set idenities to cell annotation
+Idents(AVM) <- "Cellclusters"
+
+AVM <- RenameIdents(AVM, 'T-cells' = 'T cells', 'B-cells' = 'B cells')
+
+levels(AVM) <- c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes")
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(AVM, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(AVM)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B')
+
+
+# Do only if needed to compared to all other etitities 
+# group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+# cellchat <- liftCellChat(cellchat, group)
+#colours to use if lifted
+# colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = #'#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 8, targets.use = c(1:10), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:10), targets.use =8, color.use = colours)
+
+
+# show all the significant interactions (L-R pairs) from some cell groups (defined by 'sources.use') to other cell groups (defined by 'targets.use')
+# show all the interactions sending from Inflam.FIB
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = 8, targets.use = c(1:10), lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = c(1:10), targets.use = 8, lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "AVM unsorted endothelial and perivascular cells_CellChat object.rds")
+```
+
+
+```{r}
+# CellChat ligand receptor interaction analysis of Lower grade glioma unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+LGG <- readRDS(file = "LGG unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#set default assay to "RNA"
+DefaultAssay(LGG) <- "RNA"
+
+#set idenities to cell annotation
+Idents(LGG) <- "Cellclusters"
+
+LGG <- RenameIdents(LGG, 'T-cells' = 'T cells', 'Stem-cells' = 'Stem cells', "Neutrophiles"="Neutrophils")
+
+levels(LGG) <- c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils","Fibroblasts", "Endothelial cells","Pericytes",  "Stem cells")
+
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(LGG, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(LGG)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'Pericytes' = '#E4AD5B','Stem cells' = '#F8E6FC')
+
+
+# Do only if needed to compared to all other etitities 
+# group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+# cellchat <- liftCellChat(cellchat, group)
+#colours to use if lifted
+# colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = #'#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 7, targets.use = c(1:9), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:9), targets.use =7, color.use = colours)
+
+
+# show all the significant interactions (L-R pairs) from some cell groups (defined by 'sources.use') to other cell groups (defined by 'targets.use')
+# show all the interactions sending from Inflam.FIB
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = 7, targets.use = c(1:9), lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = c(1:9), targets.use = 7, lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "LGG unsorted endothelial and perivascular cells_CellChat object.rds")
+```
+
+
+```{r}
+# CellChat ligand receptor interaction analysis of the glioblastoma unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+GBM <- readRDS(file = "GBM unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#set default assay to "RNA"
+DefaultAssay(GBM) <- "RNA"
+
+#set idenities to cell annotation
+Idents(GBM) <- "Cellclusters"
+
+GBM <- RenameIdents(GBM, 'T-cells' = 'T cells', 'Tumor stem cells' = 'Stem cells', "Neutrophiles"="Neutrophils")
+
+levels(GBM) <- c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils","Fibroblasts", "Endothelial cells","Pericytes", "Stem cells","Tumor cells","Erythroid cells")
+
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(GBM, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(GBM)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = '#8585AA','Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'Pericytes' = '#E4AD5B','Stem cells' = '#F8E6FC', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE')
+
+
+# Do only if needed to compared to all other entities 
+# group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+# cellchat <- liftCellChat(cellchat, group)
+#colours to use if lifted
+# colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = #'#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 7, targets.use = c(1:11), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:11), targets.use =7, color.use = colours)
+
+
+# show all the significant interactions (L-R pairs) from some cell groups (defined by 'sources.use') to other cell groups (defined by 'targets.use')
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = 7, targets.use = c(1:11), lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = c(1:11), targets.use = 7, lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "GBM unsorted endothelial and perivascular cells_CellChat object.rds")
+```
+
+
+```{r}
+# CellChat ligand receptor interaction analysis of the Metastasis unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+MET <- readRDS(file = "MET unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#set default assay to "RNA"
+DefaultAssay(MET) <- "RNA"
+
+#set idenities to cell annotation
+Idents(MET) <- "Cellclusters"
+
+MET <- RenameIdents(MET, 'T-cells' = 'T cells', 'Tumor epithelial cells' = 'Tumor cells', "B-cells"="B cells")
+
+levels(MET) <- c("Oligodendrocytes","T cells","Microglia and Macrophages","Fibroblasts", "Endothelial cells","B cells","Pericytes","Tumor cells")
+
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(MET, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(MET)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0','Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5','B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Tumor cells' = '#F8D5FF')
+
+
+# Do only if needed to compared to all other entities 
+# group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+# cellchat <- liftCellChat(cellchat, group)
+#colours to use if lifted
+# colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = #'#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 5, targets.use = c(1:8), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:8), targets.use =5, color.use = colours)
+
+
+# show all the significant interactions (L-R pairs) from some cell groups (defined by 'sources.use') to other cell groups (defined by 'targets.use')
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = 5, targets.use = c(1:8), lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = c(1:8), targets.use = 5, lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "MET unsorted endothelial and perivascular cells_CellChat object.rds")
+```
+
+```{r}
+# CellChat ligand receptor interaction analysis of the Meningioma unsorted endothelial and perivascular cells 
+#Source CellChat developers page: https://github.com/sqjin/CellChat
+
+#load libraries 
+library(Seurat) 
+library(CellChat)
+library(patchwork)
+library(NMF)
+library(ggalluvial)
+options(stringsAsFactors = FALSE)
+
+# Load the seurat object
+MEN <- readRDS(file = "MEN unsorted endothelial and perivascular cells_seurat object.rds")
+
+
+#set default assay to "RNA"
+DefaultAssay(MEN) <- "RNA"
+
+#set idenities to cell annotation
+Idents(MEN) <- "Cellclusters"
+
+MEN <- RenameIdents(MEN, 'T-cells' = 'T cells')
+
+levels(MEN) <- c("Oligodendrocytes","T cells","Microglia and Macrophages", "Endothelial cells","Pericytes","Tumor cells", "Mast cells")
+
+#create Cellchat object from Seurat object
+data.input <- GetAssayData(MEN, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(MEN)
+meta <- data.frame(group = labels, row.names = names(labels)) # create a dataframe of the cell labels
+
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "group")
+
+
+#load the saved CellChat database
+CellChatDB <- readRDS(file = "CellChatDB.rds")
+cellchat@DB <- CellChatDB  
+
+
+#Do CellChat analysis:
+#Preprocessing the expression data for cell-cell communication analysis
+# subset the expression data of signaling genes for saving computation cost
+cellchat <- subsetData(cellchat)
+
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+
+# project gene expression data onto PPI network (optional)
+cellchat <- projectData(cellchat, PPI.human)
+
+
+#Inference of cell-cell communication network
+#Compute the communication probability and infer cellular communication network:
+cellchat <- computeCommunProb(cellchat, type = "truncatedMean", trim = 0.05, population.size = FALSE)
+
+# Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+
+#Calculate the aggregated cell-cell communication network
+cellchat <- aggregateNet(cellchat)
+
+
+colours <- c('Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0', 'Endothelial cells' = '#EDC6B5', 'Pericytes' = '#E4AD5B', 'Tumor cells' = '#F8D5FF','Mast cells' = '#89D0F5')
+
+
+# Do only if needed to compared to all other entities 
+# group = c("Smooth muscle cells","Oligodendrocytes","T cells","Microglia and Macrophages","Neutrophils", "NK cells","Fibroblasts", "Endothelial cells","B cells","Pericytes", "Astrocytes", "Stem cells","Neurons", "Neuron progenitor","Tumor cells","Erythroid cells", "Mast cells")
+
+# cellchat <- liftCellChat(cellchat, group)
+#colours to use if lifted
+# colours <- c('Smooth muscle cells' = '#A9995B', 'Oligodendrocytes' = '#92B1B1', 'T cells' = '#A9B1F6', 'Microglia and Macrophages' = '#8585C0',  'Neutrophils' = #'#8585AA','NK cells' = '#854FAA', 'Fibroblasts' = '#BF9C00', 'Endothelial cells' = '#EDC6B5', 'B cells' = '#5A84F4', 'Pericytes' = '#E4AD5B', 'Astrocytes' = '#ABD8B5','Stem cells' = '#F8E6FC', 'Neurons' = '#EEDE84', 'Neuron progenitor' = '#EEFF97', 'Tumor cells' = '#F8D5FF', 'Erythroid cells' = '#CEB6AE', 'Mast cells' = '#89D0F5')
+
+#to plot circleplot.
+groupSize <- as.numeric(table(cellchat@idents))
+par(mfrow = c(1,2), xpd=TRUE)
+netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = colours)
+
+netVisual_circle(cellchat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Interaction weights/strength", color.use = colours)
+
+
+#To visualize weights/strength of communications per cell type
+mat <- cellchat@net$weight
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#To visualize number of communications per cell type
+mat <- cellchat@net$count
+par(mfrow = c(3,4), xpd=TRUE)
+for (i in 1:nrow(mat)) {
+  mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+  mat2[i, ] <- mat[i, ]
+  netVisual_circle(mat2, vertex.weight = groupSize, color.use = colours, weight.scale = T, edge.weight.max = max(mat), title.name = rownames(mat)[i])
+}
+
+#Visualization of cell-cell communication network -  MHC-II signaling pathway
+pathways.show <- c("MHC-II")
+
+# to plot circleplot for MHC-II pathway
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle", color.use = colours)
+
+# to plot chord plot for MHC-II signaling pathway
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", color.use = colours)
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as senders
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = FALSE, sources.use = 4, targets.use = c(1:7), color.use = colours)
+
+#MHC-II_chordplot - Endothelial cells as receivers 
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "chord", scale = TRUE, sources.use = c(1:7), targets.use =4, color.use = colours)
+
+
+# show all the significant interactions (L-R pairs) from some cell groups (defined by 'sources.use') to other cell groups (defined by 'targets.use')
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = 4, targets.use = c(1:7), lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+netVisual_chord_gene(cellchat, signaling = pathways.show, sources.use = c(1:7), targets.use = 4, lab.cex = 0.5,legend.pos.y = 30,color.use = colours)
+
+#MHC-II_heatmap
+netVisual_heatmap(cellchat, signaling = pathways.show, color.heatmap = "Reds", measure = "weight", slot.name = "netP", color.use = colours)
+
+
+# Compute the contribution of each ligand-receptor pair to the overall signaling pathway and visualize cell-cell communication mediated by a single ligand-receptor pair
+netAnalysis_contribution(cellchat, signaling = pathways.show)
+
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+
+# Plot the signaling gene expression distribution using violin plot
+plotGeneExpression(cellchat, signaling = "MHC-II", color.use = colours)
+
+
+#Systems analysis of cell-cell communication network
+#Compute and visualize the network centrality scores
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP")
+
+# Visualize the computed centrality scores using heatmap, allowing ready identification of major signaling roles of cell groups
+netAnalysis_signalingRole_network(cellchat, signaling = pathways.show, width = 8, height = 2.5, font.size = 10,color.use = colours)
+
+
+#Visualize the dominant senders (sources) and receivers (targets) in a 2D space
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+gg1 <- netAnalysis_signalingRole_scatter(cellchat, color.use = colours)
+#> Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+# Signaling role analysis on the cell-cell communication networks of interest
+gg2 <- netAnalysis_signalingRole_scatter(cellchat, signaling = c("MHC-II"), color.use = colours)
+#> Signaling role analysis on the cell-cell communication network from user's input
+gg1 + gg2
+
+
+
+# Identify signals contributing most to outgoing or incoming signaling of certain cell groups
+# Signaling role analysis on the aggregated cell-cell communication network from all signaling pathways
+ht1 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "outgoing", width = 12, height = 17, font.size = 5,color.use = colours)
+ht2 <- netAnalysis_signalingRole_heatmap(cellchat, pattern = "incoming", width = 12, height = 17, font.size = 5,color.use = colours)
+ht1 + ht2
+
+
+#Identify global communication patterns to explore how multiple cell types and signaling pathways coordinate together
+nPatterns = 3
+nPatterns = 3
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", k = nPatterns, width = 8, height = 14,font.size = 5)
+nPatterns = 4
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "incoming", k = nPatterns, width = 6, height = 14,font.size = 5)
+
+
+#riverplot
+netAnalysis_river(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_river(cellchat, pattern = "incoming",color.use = colours)
+
+#dotplot
+netAnalysis_dot(cellchat, pattern = "outgoing",color.use = colours)
+netAnalysis_dot(cellchat, pattern = "incoming",color.use = colours)
+
+#Manifold and classification learning analysis of signaling networks 
+#Identify signaling groups based on their functional similarity
+cellchat <- computeNetSimilarity(cellchat, type = "functional")
+cellchat <- netEmbedding(cellchat, type = "functional")
+
+#> Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "functional",do.parallel = FALSE, nCores = 1)
+
+#> Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "functional", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "functional", nCol = 2)
+
+#Identify signaling groups based on structure similarity
+cellchat <- computeNetSimilarity(cellchat, type = "structural")
+cellchat <- netEmbedding(cellchat, type = "structural")
+
+# Manifold learning of the signaling networks for a single dataset
+cellchat <- netClustering(cellchat, type = "structural",do.parallel = FALSE, nCores = 1)
+
+# Classification learning of the signaling networks for a single dataset
+# Visualization in 2D-space
+netVisual_embedding(cellchat, type = "structural", label.size = 3.5)
+netVisual_embeddingZoomIn(cellchat, type = "structural", nCol = 2)
+
+
+#Save the CellChat object
+saveRDS(cellchat, file = "MEN unsorted endothelial and perivascular cells_CellChat object.rds")
+```

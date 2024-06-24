@@ -1,0 +1,54 @@
+---
+title: "Harmony integration/batch correction of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#source: https://github.com/satijalab/seurat-wrappers/blob/master/docs/harmony.md
+#Harmony integration of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains
+
+## related to Supplementary Figure 9d
+
+#load library
+library(Seurat)
+library(harmony)
+
+
+#Load the seurat objects of the datasets to integrate
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+# Set the default assay to RNA in all samples
+DefaultAssay(FETAL) <- "RNA"
+DefaultAssay(TL) <- "RNA"
+DefaultAssay(AVM) <- "RNA"
+DefaultAssay(LGG) <- "RNA"
+DefaultAssay(GBM) <- "RNA"
+DefaultAssay(MEN) <- "RNA"
+DefaultAssay(MET) <- "RNA"
+
+
+#Merge seurat objects
+MERGEEC <- merge(AVM, y = c(GBM, LGG, MEN, MET, TL, FETAL))
+                 
+                 
+MERGEEC <- NormalizeData(MERGEEC) %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(verbose = TRUE)
+
+#The patient level information is in the metadata column called "Patient"
+MERGEEC <- RunHarmony(MERGEEC, group.by.vars = "Patient")
+MERGEEC <- RunUMAP(MERGEEC, reduction = "harmony", dims = 1:30)
+MERGEEC <- FindNeighbors(MERGEEC, reduction = "harmony", dims = 1:30) %>% FindClusters()
+MERGEEC <- FindClusters(MERGEEC, resolution =c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,0.8, 0.9, 1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2))
+
+
+#save the generated seurat object if needed
+saveRDS(MERGEEC, file = "HARMONY integrated sorted endothelial cells_seurat object.rds")
+     
+#End
+```

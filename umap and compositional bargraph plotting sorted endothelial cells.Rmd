@@ -1,0 +1,398 @@
+---
+title: "UMAP and compositional bar graphS, Jaccard index plotting sorted endothelial cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+# overall merge of all brain sorted CD31+/CD45- endothelial cells
+
+#load libraries 
+library(Seurat)
+library(ggplot2)
+library(scclusteval)
+library(tidyverse)
+library(patchwork)
+library(dplyr)
+
+
+#Load the seurat object of the overall merge of brain sorted CD31+/CD45- endothelial cells 
+ALLEC <- readRDS(file = "Overall merge of all brain sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the overall merge of sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Figure 2a)
+DimPlot(ALLEC, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#To plot the UMAP for the overall merge of sorted CD31+/CD45- endothelial cells colour coded by "Fetal", "Adult/control" and "Pathological" brain ECs (Figure 2a)
+DimPlot(ALLEC, reduction = "UMAP",group.by = "PATH2", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE,split.by = "PATH2", cols = c("#f8766d","turquoise3","#a0e4a8"))
+
+
+#compositional bar graphs plotting (Figure 2b-d)
+cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b')
+
+
+#To plot the UMAP for the overall merge of sorted CD31+/CD45- endothelial cells color coded according to the EC subclusters (Supplementary Figure 7a)
+DimPlot(ALLEC, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECsubclusters", raster=FALSE)
+
+#To plot the UMAP for the overall merge of sorted CD31+/CD45- endothelial cells color coded by "Fetal", "Adult/control" and "Pathological" brain ECs (Supplementary Figure 7e)
+DimPlot(ALLEC, reduction = "UMAP",group.by = "PATH2", pt.size = 1, label = FALSE, repel = TRUE, label.size = 4,raster=FALSE, cols = c("#f8766d","turquoise3","#a0e4a8"))
+
+ALLEC <- AddMetaData(object = ALLEC, metadata = "ALLEC" , col.name = "ALLEC")
+Idents(ALLEC) <- "ECclusters"
+levels(ALLEC) <- c("Large artery", "Artery", "Arteriole","Angiogenic capillary", "Capillary", "Venule", "Vein", "Large vein","Mitochondrial", "EndoMT","Proliferating EndoMT", "Proliferating cell","Stem-to-EC","Proliferating Stem-to-EC")
+
+#extract metadata to do compostional bargraphs
+metadata <- as.data.frame(as.matrix(ALLEC@meta.data))
+
+#arrange metadadata of EC AV clusters
+metadata$ECclusters <- factor(metadata$ECclusters, levels=c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC'))
+
+#arrange metadadata of EC AV sub-clusters
+metadata$ECsubclusters <- factor(metadata$ECsubclusters, levels=c('Large artery','Artery1','Artery2','Arteriole1','Arteriole2','Capillary1','Capillary2','Angiogenic capillary1','Angiogenic capillary2','Venule1','Venule2','Vein1','Vein2','Large vein','EndoMT1','EndoMT2','Proliferating EndoMT','Proliferating cell1','Proliferating cell2','Proliferating Stem-to-EC','Stem-to-EC1','Stem-to-EC2','Mitochondrial'))
+
+#arrange meradadata of Fetal vs Control vs Pathology annotation
+metadata$PATH2 <- factor(metadata$PATH2, levels=c('Fetal','Control','Pathology'))
+
+
+#arrange meradadata of Patients
+metadata$Patient <- factor(metadata$Patient,levels=c('FETALCNS1','FETALCNS2-3','FETALCNS4','FETALCNS5','TL1','TL2','TL3','TL4','TL5','TL6','TL7','TL9','TL10','AVM1','AVM2','AVM3','AVM4','AVM5','LGG1','LGG2','LGG3','LGG4','LGG5','LGG6','GBM1','GBM2','GBM3','GBM4','GBM5','GBM6','GBM7','GBM8','MET1','MET2','MET3','MET4','MET5',
+'MEN1','MEN2','MEN3','MEN4','MEN5'))
+
+
+#compositional bar graphs for all cells (all entities) - Figure 2b
+ggplot(metadata, aes(x= metadata[["ALLEC"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "Fetal", "Adult/control" and "Pathological" brain ECs - Figure 2c
+ggplot(metadata, aes(x= metadata[["PATH2"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "Fetal", "Adult/control", "brain tumors" and "brain vascular malformations" brain ECs - Figure 2d
+ggplot(metadata, aes(x= metadata[["PATH3"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "individual entity" - Figure 2d
+ggplot(metadata, aes(x= metadata[["PATH"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#compositional bar graphs for all cells - split by "individual patient" for brain endothelial cells - Supplementary Figure 8q
+ggplot(metadata, aes(x= metadata[["Patient"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+#compositional bar graphs for all cells - split by "individual patient" for peripheral organ endothelial cells - Supplementary Figure 8q
+#Load the seurat object of the peripheral organs sorted CD31+/CD45- endothelial cells 
+PERIPH <- readRDS(file = "Fetal periphery sorted endothelial cells_seurat object.rds")
+
+#extract metadata to do compostional bargraphs
+metadataperiph <- as.data.frame(as.matrix(PERIPH@meta.data))
+
+#arrange medadata of EC AV clusters
+metadataperiph$ECclusters <- factor(metadataperiph$ECclusters, levels=c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC'))
+
+ggplot(metadataperiph, aes(x= metadataperiph[["PatientID"]], fill= metadataperiph[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+#compositional bar graphs for all endothelial cells - split by "Fetal", "Adult/control" and "Pathological" brain ECs for the endothelial sub-clusters - Supplementary Figure 7f
+cols1 = c("#a0e4a8","turquoise3","#f8766d")
+ggplot(metadata, aes(x= metadata[["ECsubclusters"]], fill= metadata[["PATH2"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols1)+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#compositional bar graphs for all endothelial cell numbers - split by "Fetal", "Adult/control" and "Pathological" brain ECs for the endothelial subclusters - Supplementary Figure 7g
+ggplot(metadata, aes(fill= metadata[["PATH2"]],y=metadata[["PATH2"]], x= metadata[["ECsubclusters"]])) + geom_bar(position="stack", stat="identity")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("No. of Cells")+ scale_fill_manual(values= cols1)+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#to plot Jaccard index heatmap - Supplementary Figure 7h
+
+Idents(ALLEC) <- "ECclusters"
+levels(ALLEC) <- c("Large artery", "Artery", "Arteriole","Capillary","Angiogenic capillary", "Venule", "Vein", "Large vein", "EndoMT","Proliferating EndoMT", "Proliferating cell","Proliferating Stem-to-EC","Stem-to-EC","Mitochondrial")
+ALLEC$ECclusters <- ALLEC@active.ident
+
+
+Idents(ALLEC) <- "ECsubclusters"
+levels(ALLEC) <- c("Large artery","Artery1","Artery2","Arteriole1","Arteriole2","Capillary1","Capillary2","Angiogenic capillary1","Angiogenic capillary2","Venule1","Venule2","Vein1","Vein2","Large vein","EndoMT1","EndoMT2","Proliferating EndoMT","Proliferating cell1","Proliferating cell2","Proliferating Stem-to-EC","Stem-to-EC1","Stem-to-EC2","Mitochondrial")
+ALLEC$ECsubclusters <- ALLEC@active.ident
+
+
+PairWiseJaccardSetsHeatmap(set_names(ALLEC@meta.data$ECclusters, nm=colnames(ALLEC)),
+                           set_names(ALLEC@meta.data$ECsubclusters, nm=colnames(ALLEC)),
+                           show_row_dend = T, show_column_dend = T,
+                           cluster_row = F, cluster_column =F)
+
+
+#Supplementary figure 7i - umap plots of expression of AV specification markers
+cols = c("#9D9D9D","#FCF05C","#4CCA75","#24B066","#008F50")
+
+#Large artery markers
+FeaturePlot(ALLEC, features = c("LTBP4"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ELN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("MGP"), reduction = 'UMAP', raster=FALSE, pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("BMX"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("DKK2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("FBLN5"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Artery markers
+FeaturePlot(ALLEC, features = c("GLUL"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ADAMTS1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ALPL"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("GJA5"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("VEGFC"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SEMA3G"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Arteriole markers
+FeaturePlot(ALLEC, features = c("AIF1L"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CD320"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("NET1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("LGALS3"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("VSIR"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Angiogenic capillary markers
+FeaturePlot(ALLEC, features = c("PLVAP"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CA2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ADM"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("LXN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PGF"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PXDN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CXCR4"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ANGPT2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("APLN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ESM1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Capillary markers
+FeaturePlot(ALLEC, features = c("BSG"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SLC16A1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SLCO1A2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SLC38A5"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("MFSD2A"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CA4"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Venule markers
+FeaturePlot(ALLEC, features = c("PRCP"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PRSS23"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("RAMP3"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("DNASE1L3"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("POSTN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PTGDS"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("JAM2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Vein markers
+FeaturePlot(ALLEC, features = c("NR2F2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ACKR1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CCL2"), reduction = 'UMAP', raster=FALSE, pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("IL1R1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Large Vein markers
+FeaturePlot(ALLEC, features = c("CCL2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("VCAM1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ICAM1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SELP"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SELE"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#EndoMT markers
+FeaturePlot(ALLEC, features = c("NDUF4L2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("RGS5"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("COL1A1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("COL1A2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("APOE"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("ACTA2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("TAGLN"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Proliferating EndoMT markers
+FeaturePlot(ALLEC, features = c("THY1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("TPM2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Proliferating cells markers
+FeaturePlot(ALLEC, features = c("TOP2A"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("MKI67"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("STMN1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PTTG1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CENPF"), reduction = 'UMAP', raster=FALSE, pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Proliferating stem-to-EC markers
+FeaturePlot(ALLEC, features = c("HIST1H4C"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("HMGN2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("BEX1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("HMGB2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("UBE2C"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#Stem-to-EC markers
+FeaturePlot(ALLEC, features = c("FABP7"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("VEGFA"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("CD44"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PLAUR"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PODXL2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("POU3F2"), reduction = 'UMAP', raster=FALSE, pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("OLIG1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("OLIG2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SALL2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("GFAP"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("EGFR"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SOX2"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("PTPRZ1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("EPCAM"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("SFTPB"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALLEC, features = c("TREM1"), reduction = 'UMAP', raster=FALSE,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+
+#End 
+```
+
+```{r}
+#Fetal brain (CNS) sorted CD31+/CD45- endothelial cells
+
+#Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the fetal brain (CNS) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 8a)
+DimPlot(FETAL, reduction = "umap", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+
+#to plot a UMAP of the fetal brain ECs on the coordinates of the overall merge of endothelial cells (Supplementary Figure 10r)
+ALLEC <- readRDS(file = "Overall merge of all brain sorted endothelial cells_seurat object.rds")
+Idents(ALLEC) <- "PATH"
+
+FETALSUB <- subset(ALLEC, idents = c("FETALCNS"))
+DimPlot(FETALSUB, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+
+# to plot a UMAP of the fetal brain ECs on the coordinates of the overall merge of endothelial cells for each of the fetal brain samples/gestational weeks (Supplementary Figure 10t)
+DimPlot(FETALSUB, reduction = "UMAP",split.by = "Patient", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#to plot the compositional bar graphs for the fetal brain samples/gestational weeks (Supplementary Figure 10s)
+#extract metadata to do compostional bargraphs
+metadata <- as.data.frame(as.matrix(FETALSUB@meta.data))
+
+#arrange metadadata of EC AV clusters
+metadata$ECclusters <- factor(metadata$ECclusters, levels=c('Large artery', 'Artery', 'Arteriole','Angiogenic capillary', 'Capillary','Venule', 'Vein', 'Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC'))
+
+
+cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b')
+
+#compositional bar graphs (Supplementary Figure 10s)
+ggplot(metadata, aes(x= metadata[["Patient"]], fill= metadata[["ECclusters"]])) + geom_bar(position = "fill")+ labs(fill= NULL)+ xlab("Cluster")+ ylab("Propotion of Cells") + scale_fill_manual(values=cols)
+
+#End 
+```
+
+```{r}
+#Adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10c)
+DimPlot(TL, reduction = "umap", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End 
+```
+
+```{r}
+#Arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10e)
+DimPlot(AVM, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End 
+```
+
+```{r}
+#Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10g)
+DimPlot(LGG, reduction = "umap", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End
+```
+
+```{r}
+#High grade glioma (GBM) sorted CD31+/CD45- endothelial cells
+#Load the seurat object
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10i)
+DimPlot(GBM, reduction = "umap", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End
+```
+
+```{r}
+#Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the Metastasis (MET) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10k)
+DimPlot(MET, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End
+```
+
+```{r}
+#Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+# Load the seurat object
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the Metastasis (MET) sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 10m)
+DimPlot(MEN, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End
+```
+
+```{r}
+#overall merge of pathological sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+PATH <- readRDS(file = "Overall merge of pathological sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the overall merge of pathological sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification 
+DimPlot(PATH, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End 
+```
+
+```{r}
+#overall merge of brain tumors sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+TUM <- readRDS(file = "Overall merge of tumor sorted endothelial cells_seurat object.rds")
+
+#To plot the UMAP for the overall merge of brain tumors sorted CD31+/CD45- endothelial cells colour coded according to the Arteriovenous specification (Supplementary Figure 8)
+DimPlot(TUM, reduction = "UMAP", label = TRUE, repel = TRUE, label.size = 4,pt.size = 1,group.by = "ECclusters", raster=FALSE,cols = c('Large artery' = '#a1000b','Artery' = '#d0000d', 'Arteriole' = '#d13b18', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Venule' = '#6dc4fd', 'Vein' = '#29e2e6','Large vein' = '#0000b3', 'Mitochondrial' = '#f1b77c', 'EndoMT' = '#70fb52', 'Proliferating EndoMT' = '#affd2d', 'Proliferating cell' = '#FBFF00', 'Stem-to-EC' = '#4cd7a4', 'Proliferating Stem-to-EC' = '#89e56b'))
+
+#End 
+```
+
+```{r}
+#overall merge of brain and periphery sorted CD31+/CD45- endothelial cells 
+#Load the seurat object
+ALL <- readRDS(file = "Overall merge of all sorted brain and peripehry endothelial cells_seurat object.rds")
+
+#Supplementary figure 1 - umap plots of expression of endothelial markers
+library(ggplot2)
+cols = c("#9D9D9D","#FCF05C","#4CCA75","#24B066","#008F50")
+FeaturePlot(ALL, features = c("PECAM1"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols) #PECAM1 = CD31
+FeaturePlot(ALL, features = c("VWF"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("ENG"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("EMCN"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("CLDN5"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("CDH5"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("TJP1"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols) #ZO-1 = TJP1
+FeaturePlot(ALL, features = c("OCLN"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("PDGFRB"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("NG2"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols)
+FeaturePlot(ALL, features = c("PTPRC"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols) #CD45 = PTPRC
+FeaturePlot(ALL, features = c("CD68"), reduction = 'umap', raster=FALSE, ,pt.size=0.5,min.cutoff = 0) + scale_colour_gradientn(colours = cols) 
+
+
+#Supplementary figure 1 - violin plots of expression of endothelial markers
+Idents(ALL) <- "PATH"
+levels(ALL) <- c("FETALCNS","FETALPERIPH","TL","AVM","LGG","GBM","MET","MEN")
+cols = c('TL' = '#f8766d', 'GBM' = '#d39200', 'LGG' = '#93aa00', 'MET' = '#00ba38',  'MEN' = '#00c19f', 'AVM' = '#00b9e3', 'FETALCNS' = '#FFC4C4', 'FETALPERIPH' = '#C09902')
+VlnPlot(ALL, features = c("PECAM1"), log = TRUE,pt.size = 0, cols = cols) #PECAM1= CD31
+VlnPlot(ALL, features = c("VWF"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("ENG"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("EMCN"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("CLDN5"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("CDH5"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("TJP1"), log = TRUE,pt.size = 0, cols = cols) #ZO-1= TJP1
+VlnPlot(ALL, features = c("OCLN"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("PDGFRB"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("NG2"), log = TRUE,pt.size = 0, cols = cols)
+VlnPlot(ALL, features = c("PTPRC"), log = TRUE,pt.size = 0, cols = cols) #CD45 = PTPRC
+VlnPlot(ALL, features = c("CD68"), log = TRUE,pt.size = 0, cols = cols)
+
+
+#End 
+```
+

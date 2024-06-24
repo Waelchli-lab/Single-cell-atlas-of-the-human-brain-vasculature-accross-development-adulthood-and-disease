@@ -1,0 +1,74 @@
+---
+title: "CCA integration/batch correction of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Seurat developers page: https://satijalab.org/seurat/articles/integration_introduction.html
+#CCA integration of sorted CD31+/CD45- endothelial cells from fetal, adult/control and pathological brains
+## related to Supplementary Figure 9c
+
+#load library
+library(Seurat)
+
+#Load the seurat objects of the datasets to integrate
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+# Set the default assay to RNA in all samples
+DefaultAssay(FETAL) <- "RNA"
+DefaultAssay(TL) <- "RNA"
+DefaultAssay(AVM) <- "RNA"
+DefaultAssay(LGG) <- "RNA"
+DefaultAssay(GBM) <- "RNA"
+DefaultAssay(MEN) <- "RNA"
+DefaultAssay(MET) <- "RNA"
+
+#Merge seurat objects
+MERGEEC <- merge(AVM, y = c(GBM, LGG, MEN, MET, TL, FETAL))
+                 
+#split the dataset into a list of patient level seurat objects. The patient level information is in the metadata column called "Patient"                   
+list <- SplitObject(MERGEEC, split.by = "Patient")
+
+# normalize and identify variable features for each dataset independently
+list <- lapply(X = list, FUN = function(x) {
+    x <- NormalizeData(x, verbose = FALSE)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 3000,verbose = FALSE)
+})
+
+
+# select features that are repeatedly variable across datasets for integration run PCA on each
+# dataset using these features
+features <- SelectIntegrationFeatures(object.list = list, nfeatures = 3000)
+
+anchors <- FindIntegrationAnchors(object.list = list, anchor.features = features)
+
+
+#Perform integration
+# original unmodified data still resides in the 'RNA' assay
+INTEGRATED <- IntegrateData(anchorset = anchors, dims = 1:30)
+
+
+#Run the standard workflow for visualization and clustering
+DefaultAssay(integrated) <- "integrated"
+INTEGRATED <- ScaleData(INTEGRATED, verbose = FALSE)
+INTEGRATED <- RunPCA(INTEGRATED, verbose = FALSE)
+INTEGRATED <- FindNeighbors(INTEGRATED, dims = 1:30)
+
+INTEGRATED <- FindClusters(INTEGRATED, resolution = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,0.8, 0.9, 1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2))
+
+INTEGRATED <- RunUMAP(INTEGRATED, dims = 1:30)
+INTEGRATED <- RunTSNE(INTEGRATED, dims = 1:30)
+
+#save the generated seurat object if needed
+saveRDS(INTEGRATED, file = "ccA integrated sorted endothelial cells_seurat object.rds")
+
+#End
+```
+

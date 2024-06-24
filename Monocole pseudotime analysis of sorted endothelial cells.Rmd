@@ -1,0 +1,1027 @@
+---
+title: "Monocle 3 pseudotime analysis"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+##Monocole pseudotime analysis of sorted endothelial cells
+## related to Figure 3 b,c,f,g,j,k, Extended Data Figure 4 b,c,f,g,j,k,n,o,r,s,w,x and Supplementary Figure 12
+
+#Source http://htmlpreview.github.io/?https://github.com/satijalab/seurat-wrappers/blob/master/docs/monocle3.html
+
+# Monocle3 pseudotime analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+FETAL <- readRDS(file = "Fetal CNS sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(FETAL) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(FETAL)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- FETAL@reductions[["umap"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "Fetal CNS sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the fetal brain (CNS) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "Fetal CNS sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#to generate spline plots from the already generated Monocle 3 (CDS) to seurat converted object - Supplementary Figure 12
+seuratcds <- readRDS(file = "Fetal CNS sorted endothelial cells_CDS to seurat object.rds")
+
+seuratcds <- ScaleData(seuratcds, verbose = FALSE, features = row.names(seuratcds))
+
+# to plot spline plots of Large artery markers (Supplementary Figure 12)
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["FBLN5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["FBLN5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("FBLN5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ELN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ELN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ELN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GJA5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GJA5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GJA5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["DKK2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["DKK2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("DKK2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Artery markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ALPL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ALPL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ALPL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SEMA3G"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["EFNB2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["EFNB2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("EFNB2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GLUL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GLUL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GLUL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Capillary markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("MFSD2A"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["CA4",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["CA4",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("CA4"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["APLN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["APLN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("APLN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ANGPT2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["NR2F2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["NR2F2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("NR2F2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["IL1R1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["IL1R1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("IL1R1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["PTGDS",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["PTGDS",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("PTGDS"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ICAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ICAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ICAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+# to plot spline plots of Large Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELP",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELP",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELP"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELE",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELE",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELE"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ACKR1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ACKR1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ACKR1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["VCAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["VCAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("VCAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+
+#End 
+```
+
+\`\`\`
+
+```{r}
+
+# Monocle3 pseudotime analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+TL <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(TL) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(TL)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- TL@reductions[["umap"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "Adult control brain (temporal lobe) sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the adult/control brain (temporal lobe) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#to generate spline plots from the already generated Monocle 3 (CDS) to seurat converted object  - Supplementary Figure 10 f-j
+#load the already provided seurat (Monocle CDS converted) object
+
+seuratcds <- readRDS(file = "Adult control brain (temporal lobe) sorted endothelial cells_CDS to seurat object.rds")
+
+seuratcds <- ScaleData(seuratcds, verbose = FALSE, features = row.names(seuratcds))
+
+# to plot spline plots of Large artery markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["FBLN5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["FBLN5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("FBLN5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ELN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ELN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ELN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GJA5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GJA5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GJA5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["DKK2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["DKK2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("DKK2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Artery markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ALPL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ALPL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ALPL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SEMA3G"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["EFNB2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["EFNB2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("EFNB2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GLUL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GLUL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GLUL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Capillary markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("MFSD2A"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["CA4",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["CA4",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("CA4"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["APLN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["APLN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("APLN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ANGPT2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["NR2F2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["NR2F2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("NR2F2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["IL1R1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["IL1R1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("IL1R1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["PTGDS",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["PTGDS",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("PTGDS"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ICAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ICAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ICAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+# to plot spline plots of Large Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELP",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELP",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELP"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELE",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELE",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELE"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ACKR1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ACKR1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ACKR1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["VCAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["VCAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("VCAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+#End 
+```
+
+```{r}
+# Monocle3 pseudotime analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+AVM <- readRDS(file = "AVM sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(AVM) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(AVM)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- AVM@reductions[["UMAP"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "AVM sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the arteriovenous malformations (AVM) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "AVM sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```
+
+
+```{r}
+# Monocle3 pseudotime analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+LGG <- readRDS(file = "LGG sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(LGG) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(LGG)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- LGG@reductions[["umap"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "LGG sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the Lower grade glioma (LGG) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "LGG sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```
+
+
+```{r}
+# Monocle3 pseudotime analysis of the High grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+GBM <- readRDS(file = "GBM sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(GBM) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(GBM)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- GBM@reductions[["umap"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "GBM sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the high grade glioma (GBM) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "GBM sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```
+
+```{r}
+# Monocle3 pseudotime analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+MET <- readRDS(file = "MET sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(MET) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(MET)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- MET@reductions[["UMAP"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "MET sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the Metastasis (MET) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "MET sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```
+
+
+```{r}
+# Monocle3 pseudotime analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+MEN <- readRDS(file = "MEN sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(MEN) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(MEN)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- MEN@reductions[["UMAP"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "MEN sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the Meningioma (MEN) sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "MEN sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```
+
+
+```{r}
+# Monocle3 pseudotime analysis of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+PATH <- readRDS(file = "Overall merge of pathological sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(PATH) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(PATH)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- PATH@reductions[["UMAP"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "Overall merge of pathological sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the overall merge of pathological sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "Overall merge of pathological sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+
+#to generate spline plots from the already generated Monocle 3 (CDS) to seurat converted object  - Supplementary Figure 10 k-o
+#load the already provided seurat (Monocle CDS converted) object
+
+seuratcds <- readRDS(file = "Overall merge of pathological sorted endothelial cells_CDS to seurat object.rds")
+
+seuratcds <- ScaleData(seuratcds, verbose = FALSE, features = row.names(seuratcds))
+
+# to plot spline plots of Large artery markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["FBLN5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["FBLN5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("FBLN5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ELN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ELN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ELN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GJA5",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GJA5",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GJA5"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["DKK2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["DKK2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("DKK2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Artery markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ALPL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ALPL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ALPL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SEMA3G",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SEMA3G"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["EFNB2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["EFNB2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("EFNB2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["GLUL",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["GLUL",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("GLUL"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Capillary markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["MFSD2A",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("MFSD2A"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["CA4",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["CA4",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("CA4"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["APLN",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["APLN",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("APLN"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ANGPT2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ANGPT2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+# to plot spline plots of Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["NR2F2",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["NR2F2",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("NR2F2"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["IL1R1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["IL1R1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("IL1R1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["PTGDS",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["PTGDS",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("PTGDS"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ICAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ICAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ICAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+# to plot spline plots of Large Vein markers
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELP",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELP",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELP"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["SELE",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["SELE",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("SELE"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["ACKR1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["ACKR1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("ACKR1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+ggplot(as.data.frame(as.matrix(seuratcds@assays[["RNA"]]@scale.data["VCAM1",])), aes(x= seuratcds$monocle3_pseudotime, y= seuratcds@assays[["RNA"]]@scale.data["VCAM1",])) + geom_segment(aes(colour= seuratcds$ECclusters), color = "black",xend = seuratcds$monocle3_pseudotime, yend = 0,size = 1.5) + geom_smooth(method = "gam",show.legend = TRUE,size=3, colour="orange",stat = "smooth",se = TRUE)+theme(legend.position="none") +labs(title=paste("VCAM1"), fill="Cluster", x=NULL, y="logcounts(Expression)") + theme(plot.title = element_text(hjust = 0.5, size=17), panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), panel.background = element_rect(fill = 'white'))+scale_colour_manual(values=my_color)
+
+
+
+
+#End 
+```
+
+
+```{r}
+# Monocle3 pseudotime analysis of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+
+#load libraries 
+library(monocle3)
+library(Seurat)
+library(SeuratWrappers)
+library(ggplot2)
+library(patchwork)
+library(magrittr)
+library(ggbeeswarm)
+library(viridis)
+
+# Load the seurat object
+TUM <- readRDS(file = "Overall merge of tumor sorted endothelial cells_seurat object.rds")
+
+#set the default assay to "RNA"
+DefaultAssay(TUM) <- "RNA"
+
+# Convert the seurat object to cds object 
+cds <- as.cell_data_set(TUM)
+cds <- cluster_cells(cds)
+
+# Transfer the cell UMAP embeddings from the seurat object to the cds object:
+cds@int_colData@listData[["reducedDims"]][["UMAP"]] <- TUM@reductions[["UMAP"]]@cell.embeddings
+
+
+#choose the root point
+cds <- learn_graph(cds)
+cds <- order_cells(cds) #select the 'Large artery' as the starting point
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+
+#save the CDS object
+saveRDS(cds, file = "Overall merge of tumor sorted endothelial cells_cds monocle object.rds")
+
+#End of Monocle3 pseudotime analysis of the overall merge of tumor sorted CD31+/CD45- endothelial cells 
+
+
+
+#to generate plots from the already generated and provided Monocle 3 CDS object
+
+#load the already provided Monocle CDS object
+cds <- readRDS(file = "Overall merge of tumor sorted endothelial cells_cds monocle object.rds")
+
+
+#plot the pseudotime UMAP
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, label_branch_points = FALSE, graph_label_size = 6,
+group_label_size = 6,cell_size = 1.5)+ scale_color_viridis(discrete = FALSE, option = "E")
+
+
+#plot cell order according to pseudotime
+pdata_cds <- pData(cds)
+pdata_cds$pseudotime_monocle3 <- monocle3::pseudotime(cds)
+
+my_color = c('EndoMT' = '#70fb52', 'Stem-to-EC' = '#4cd7a4', 'Mitochondrial' = '#f1b77c', 'Angiogenic capillary' = '#c300fe', 'Capillary' = '#fb00c9', 'Large artery' = '#a1000b', 'Artery' = '#d0000d','Vein' = '#29e2e6', 'Large vein' = '#0000b3',  'Venule' = '#6dc4fd', 'Arteriole' = '#d13b18', 'Proliferating cell' = '#FBFF00', 'Proliferating Stem-to-EC' = '#89e56b', 'Proliferating EndoMT' = '#affd2d')
+
+level_order <- c('Large artery','Artery','Arteriole','Angiogenic capillary','Capillary','Venule', 'Vein','Large vein','Mitochondrial', 'EndoMT', 'Proliferating EndoMT', 'Proliferating cell', 'Stem-to-EC', 'Proliferating Stem-to-EC')
+
+
+ggplot(as.data.frame(pdata_cds), 
+       aes(x = pseudotime_monocle3, 
+           y = factor(ECclusters, level = level_order), colour = ECclusters)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_manual(values = my_color) + theme_classic() +
+    xlab("monocle3 pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by monocle3 pseudotime")
+
+#End 
+```

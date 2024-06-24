@@ -1,0 +1,58 @@
+---
+title: "Generation and processing of loom files for downstream RNA velocity analysis of sorted endothelial cells"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{python}
+#run Velocyto in ubuntu command-line to generate loom files, on which RNA velocity analysis is performed 
+#important: the cell ranger output has to be in a folder called "outs".
+
+velocyto run10x -m /hg38_rmsk.gtf /outs/ /genes.gtf 
+
+```
+
+```{python}
+#process the generated loom files 
+
+python
+import anndata
+import scvelo as scv
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import dataframe_image as dfi
+import cellrank as cr
+
+#read loom file in
+sample_one = anndata.read_loom("sample_one.loom")
+
+#load the cell names, umap coordinates and cell cluster labels (extracted from the seurat object)
+sample_obs = pd.read_csv("cellID_obs.csv")
+umap = pd.read_csv("cell_embeddings.csv")
+cell_clusters = pd.read_csv("clusters.csv")
+
+
+# To remove cells filtered out from the loom file (note that "x" is the column name of the "sample_obs" and "cellID_obs.csv" files.
+sample_one = sample_one[np.isin(sample_one.obs.index,sample_obs["x"])]
+
+#cast index as a data frame and change the column name
+sample_one_index = pd.DataFrame(sample_one.obs.index)
+sample_one_index = sample_one_index.rename(columns = {0:'CellID'})
+
+#change the first column of our UMAP data frame to the same name:
+umap = umap.rename(columns = {'Unnamed: 0':'CellID'})
+
+umap_ordered = sample_one_index.merge(umap, on = "CellID")
+
+# remove the first column of the data #frame and add the UMAP coordinates to our anndata object.
+umap_ordered = umap_ordered.iloc[:,1:]
+sample_one.obsm['X_umap'] = umap_ordered.values
+
+#to add the cluster annotations 
+cell_clusters = cell_clusters.rename(columns = {'Unnamed: 0':'CellID'})
+cell_clusters_ordered = sample_one_index.merge(cell_clusters, on = "CellID")
+cell_clusters_ordered = cell_clusters_ordered.iloc[:,1:]
+sample_one.obs['clusters'] = cell_clusters_ordered.values
+```
+

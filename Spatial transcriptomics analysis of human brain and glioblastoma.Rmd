@@ -1,0 +1,70 @@
+---
+title: "Spatial transcriptomics analysis of human brain and glioblastoma"
+author: "Moheb Ghobrial"
+output: html_notebook
+---
+
+```{r}
+#Spatial transcriptomics analysis of human brain and glioblastoma - Supplementary Figure 18
+#source: developers page: https://satijalab.org/seurat/articles/spatial_vignette.html
+
+#Spatial transcriptomics analysis of the 10x Visium Adult Human Brain (Cerebral Cortex) dataset
+# download the space ranger data (https://www.10xgenomics.com/resources/datasets/adult-human-brain-1-cerebral-cortex-unknown-orientation-stains-anti-gfap-anti-nfh-1-standard-1-1-0)
+
+#load libraries 
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+
+# If one wants to start processing from raw downloaded spaceranger files #un-comment the next two lines of you want to load the raw 10x visium data
+#data_dir <- 'Data-dir-of-downloaded-files-Adult-Human-Brain' 
+#BRAIN <- Load10X_Spatial(data.dir = data_dir, filename ="V1_Human_Brain_Section_1_filtered_feature_bc_matrix.h5")
+
+#Data preprocessing
+plot1 <- VlnPlot(BRAIN, features = "nCount_Spatial", pt.size = 0.1) + NoLegend()
+plot2 <- SpatialFeaturePlot(BRAIN, features = "nCount_Spatial") + theme(legend.position = "right")
+wrap_plots(plot1, plot2)
+
+#data normalization to account for variance in sequencing depth across data points
+BRAIN <- SCTransform(BRAIN, assay = "Spatial", verbose = FALSE)
+
+#gene expression visualization
+SpatialFeaturePlot(BRAIN, features = c("PECAM1","CLDN5","VWF","PTPRC","AIF1","ITGAM","NR2F2","MFSD2A","MIF","APP","COPA", "CD74"),ncol = 3)
+
+saveRDS(BRAIN, file = "Human brain cortex_10x Visium_seurat object.rds")
+
+#End 
+```
+
+```{r}
+#source: developers page: https://satijalab.org/seurat/articles/spatial_vignette.html
+
+#Spatial transcriptomics analysis of the 10x Visium Adult Human Brain (Cerebral Cortex) dataset
+# download the space ranger data (https://www.10xgenomics.com/resources/datasets/human-glioblastoma-whole-transcriptome-analysis-1-standard-1-2-0)
+
+#load libraries 
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+
+# If one wants to start processing from raw downloaded spaceranger files #un-comment the next two lines of you want to load the raw 10x visium data
+#data_dir <- 'Data-dir-of-downloaded-files-Adult-Human-Brain' 
+#GBM <- Load10X_Spatial(data.dir = data_dir,  filename= "Parent_Visium_Human_Glioblastoma_filtered_feature_bc_matrix.h5")
+
+#Data preprocessing
+plot1 <- VlnPlot(GBM, features = "nCount_Spatial", pt.size = 0.1) + NoLegend()
+plot2 <- SpatialFeaturePlot(GBM, features = "nCount_Spatial") + theme(legend.position = "right")
+wrap_plots(plot1, plot2)
+
+#data normalization to account for variance in sequencing depth across data points
+GBM <- SCTransform(GBM, assay = "Spatial", verbose = FALSE)
+
+#gene expression visualization
+SpatialFeaturePlot(GBM, features = c("PECAM1","CLDN5","VWF","PTPRC","AIF1","ITGAM","NR2F2","MFSD2A","MIF","APP","COPA", "CD74"),ncol = 3)
+
+saveRDS(GBM, file = "Human glioblastoma_10x Visium_seurat object.rds")
+
+#End 
+```
