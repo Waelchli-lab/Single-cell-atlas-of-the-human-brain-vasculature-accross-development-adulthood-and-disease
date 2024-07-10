@@ -1,5 +1,5 @@
 # **Single-cell-atlas-of-the-human-brain-vasculature-across-development-adulthood-and-disease**
-- **Publicaiton link:https://www.nature.com/articles/s41586-024-07493-y**
+- **Publicaiton link: https://www.nature.com/articles/s41586-024-07493-y**
 
 ## **Abstract**
 A broad range of brain pathologies critically relies on the vasculature, and cerebrovascular disease is a leading cause of death worldwide. 
